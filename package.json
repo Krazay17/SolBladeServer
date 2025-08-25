@@ -1,0 +1,13 @@
+{
+  "name": "solBlade-server",
+  "version": "1.0.0",
+  "description": "Server for SolBlade Game",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1"
+  }
+}
