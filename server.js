@@ -26,14 +26,6 @@ io.on('connection', (socket) => {
     })
 
     socket.on('joinGame', (data) => {
-        const playerData = {
-            id: socket.id,
-            scene: data.scene,
-            pos: data.pos,
-            state: data.state,
-            name: data.name,
-            money: data.money
-        };
         console.log(data);
         players[socket.id].scene = data.scene;
         players[socket.id].pos = data.pos;
@@ -42,7 +34,7 @@ io.on('connection', (socket) => {
         players[socket.id].money = data.money;
 
         //Tell players we joined
-        socket.broadcast.emit('newPlayer', playerData);
+        socket.broadcast.emit('newPlayer', { id: socket.id, data });
 
         //Tell us who is here
         const playerList = Object.keys(players).map(id => ({
@@ -57,12 +49,12 @@ io.on('connection', (socket) => {
         }));
         socket.emit('currentPlayers', playerList);
 
-        socket.on('playerPosRequest', (data) => {
-            socket.broadcast.emit('playerPosUpdate', data);
+        socket.on('playerNetData', (data) => {
+            socket.broadcast.emit('playerNetUpdate', { id: socket.id, data });
         })
 
         socket.on('playerStateRequest', (data) => {
-            socket.broadcast.emit('playerStateUpdate', data);
+            socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
         });
     });
 });
