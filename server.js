@@ -12,11 +12,12 @@ const io = new Server(server, {
 });
 
 let players = {};
-
+// , id: socket.id, pos: {}, state: "", user: ""
 io.on('connection', (socket) => {
-    players[socket.id] = { socket, lastPing: Date.now() };
+    players[socket.id] = { socket, lastPing: Date.now(), scene: null, pos: { x: 0, y: 5, z: 0 }, state: null, name: null, money: null };
     console.log('a user connected: ' + socket.id);
     socket.on('disconnect', () => {
+        socket.broadcast.emit('playerDisconnected', socket.id);
         console.log('user disconnected: ' + socket.id);
         delete players[socket.id];
     });
@@ -24,10 +25,45 @@ io.on('connection', (socket) => {
         players[socket.id].lastPing = Date.now();
     })
 
-    socket.on('playerReady', (data) => {
-        console.log('Player ready:', data);
-        const playerList = Object.keys(players).map(id => ({ id }));
-        socket.emit('initData', playerList);
+    socket.on('joinGame', (data) => {
+        const playerData = {
+            id: socket.id,
+            scene: data.scene,
+            pos: data.pos,
+            state: data.state,
+            name: data.name,
+            money: data.money
+        };
+        console.log(data);
+        players[socket.id].scene = data.scene;
+        players[socket.id].pos = data.pos;
+        players[socket.id].state = data.state;
+        players[socket.id].name = data.name;
+        players[socket.id].money = data.money;
+
+        //Tell players we joined
+        socket.broadcast.emit('newPlayer', playerData);
+
+        //Tell us who is here
+        const playerList = Object.keys(players).map(id => ({
+            id,
+            data: {
+                scene: players[id].scene,
+                pos: players[id].pos,
+                state: players[id].state,
+                name: players[id].name,
+                money: players[id].money,
+            }
+        }));
+        socket.emit('currentPlayers', playerList);
+
+        socket.on('playerPosRequest', (data) => {
+            socket.broadcast.emit('playerPosUpdate', data);
+        })
+
+        socket.on('playerStateRequest', (data) => {
+            socket.broadcast.emit('playerStateUpdate', data);
+        });
     });
 });
 
