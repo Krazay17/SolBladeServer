@@ -56,7 +56,10 @@ io.on('connection', (socket) => {
         socket.on('playerStateRequest', (data) => {
             socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
         });
-    });
+
+        socket.on('chatMessageRequest', ({ player, message }) => {
+            socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message } });
+        });
 });
 
 setInterval(() => {
