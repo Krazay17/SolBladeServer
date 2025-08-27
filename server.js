@@ -60,6 +60,7 @@ io.on('connection', (socket) => {
         socket.on('chatMessageRequest', ({ player, message }) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message } });
         });
+    });
 });
 
 setInterval(() => {
