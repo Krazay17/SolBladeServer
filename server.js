@@ -26,12 +26,13 @@ io.on('connection', (socket) => {
     })
 
     socket.on('joinGame', (data) => {
-        console.log(data);
         players[socket.id].scene = data.scene;
         players[socket.id].pos = data.pos;
         players[socket.id].state = data.state;
         players[socket.id].name = data.name;
         players[socket.id].money = data.money;
+        players[socket.id].health = data.health || 100;
+        players[socket.id].blocking = data.blocking || false;
 
         //Tell players we joined
         socket.broadcast.emit('newPlayer', { id: socket.id, data });
@@ -49,19 +50,57 @@ io.on('connection', (socket) => {
         }));
         socket.emit('currentPlayers', playerList);
 
-        socket.on('playerNetData', (data) => {
-            socket.broadcast.emit('playerNetUpdate', { id: socket.id, data });
-        })
-
+        socket.on('playerPositionRequest', (data) => {
+            socket.broadcast.emit('playerPositionUpdate', { id: socket.id, data });
+        });
         socket.on('playerStateRequest', (data) => {
             socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
         });
-
         socket.on('chatMessageRequest', ({ player, message }) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message } });
         });
+        socket.on('playerHealthRequest', ({ targetId, reason, amount }) => {
+            if (!players[targetId]) return;
+            const health = players[targetId].health;
+            switch (reason) {
+                case "damage":
+                    if (players[targetId].blocking) {
+                        socket.broadcast.emit('playerBlockUpdate', { id: targetId });
+                        return;
+                    }
+                    players[targetId].health -= amount;
+                    break;
+                default:
+                    players[targetId].health += amount;
+                    break;
+            }
+            socket.broadcast.emit('playerHealthUpdate', {
+                id: socket.id,
+                data: {
+                    targetId,
+                    reason,
+                    amount,
+                    health,
+                }
+            });
+        });
+        socket.on('playerCCRequest', ({ targetId, type, x, y, z }) => {
+            if (!players[targetId]) return;
+            switch (type) {
+                case 'knockback':
+                    if (players[targetId].blocking) {
+                        socket.broadcast.emit('playerBlockUpdate', { id: targetId });
+                        return;
+                    }
+                    break;
+                default:
+                    console.warn(`Unknown CC type: ${type}`);
+            }
+            socket.broadcast.emit('playerCCUpdate', { id: targetId, data: { type, x, y, z } });
+        });
     });
 });
+
 
 setInterval(() => {
     Object.keys(players).forEach(key => {
