@@ -51,9 +51,11 @@ io.on('connection', (socket) => {
         socket.emit('currentPlayers', playerList);
 
         socket.on('playerPositionRequest', (data) => {
+            if (players[socket.id]) players[socket.id].pos = data.pos;
             socket.broadcast.emit('playerPositionUpdate', { id: socket.id, data });
         });
         socket.on('playerStateRequest', (data) => {
+            if (players[socket.id]) players[socket.id].state = data.state;
             socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
         });
         socket.on('chatMessageRequest', ({ player, message }) => {
