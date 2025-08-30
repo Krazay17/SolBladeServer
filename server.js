@@ -1,4 +1,5 @@
 import { Server } from "socket.io";
+import { sendDiscordMessage } from "./DiscordStuff.js";
 import http from "http";
 
 const PORT = process.env.PORT || 3000;
@@ -10,6 +11,8 @@ const io = new Server(server, {
         methods: ["GET", "POST"]
     }
 });
+const isLocal = process.env.PORT === '3000' || process.env.NODE_ENV === 'development' || !process.env.PORT;
+
 
 let players = {};
 // , id: socket.id, pos: {}, state: "", user: ""
@@ -49,6 +52,9 @@ io.on('connection', (socket) => {
             }
         }));
         socket.emit('currentPlayers', playerList);
+        socket.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'red' } });
+        if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
+        console.log(isLocal);
 
         socket.on('playerPositionRequest', (data) => {
             if (players[socket.id]) players[socket.id].pos = data.pos;
