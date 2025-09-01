@@ -52,9 +52,8 @@ io.on('connection', (socket) => {
             }
         }));
         socket.emit('currentPlayers', playerList);
-        socket.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'red' } });
+        socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'red' } });
         if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
-        console.log(isLocal);
 
         socket.on('playerPositionRequest', (data) => {
             if (players[socket.id]) players[socket.id].pos = data.pos;
@@ -92,7 +91,7 @@ io.on('connection', (socket) => {
                 }
             });
         });
-        socket.on('playerCCRequest', ({ targetId, type, x, y, z }) => {
+        socket.on('playerCCRequest', ({ targetId, type, dir }) => {
             if (!players[targetId]) return;
             switch (type) {
                 case 'knockback':
@@ -104,7 +103,7 @@ io.on('connection', (socket) => {
                 default:
                     console.warn(`Unknown CC type: ${type}`);
             }
-            socket.broadcast.emit('playerCCUpdate', { id: targetId, data: { type, x, y, z } });
+            socket.broadcast.emit('playerCCUpdate', { id: targetId, data: { type, dir } });
         });
     });
 });
