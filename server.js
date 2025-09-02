@@ -21,11 +21,14 @@ io.on('connection', (socket) => {
     console.log('a user connected: ' + socket.id);
     socket.on('disconnect', () => {
         socket.broadcast.emit('playerDisconnected', socket.id);
+        socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' } });
+        if (!isLocal) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
         delete players[socket.id];
     });
     socket.on('heartbeat', () => {
         players[socket.id].lastPing = Date.now();
+        socket.emit('heartbeatAck');
     })
 
     socket.on('joinGame', (data) => {
@@ -52,8 +55,12 @@ io.on('connection', (socket) => {
             }
         }));
         socket.emit('currentPlayers', playerList);
-        socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'red' } });
+        socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'white' } });
         if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
+        socket.on('playerNameUpdate', (data) => {
+            if (players[socket.id]) players[socket.id].name = data.name;
+            socket.broadcast.emit('playerNameUpdate', { id: socket.id, data });
+        });
 
         socket.on('playerPositionRequest', (data) => {
             if (players[socket.id]) players[socket.id].pos = data.pos;
