@@ -38,14 +38,14 @@ io.on('connection', (socket) => {
         players[socket.id].name = data.name;
         players[socket.id].money = data.money;
         players[socket.id].health = data.health || 100;
-        players[socket.id].blocking = data.blocking || false;
+        players[socket.id].blocking = false;
 
         //Tell players we joined
-        socket.broadcast.emit('newPlayer', { id: socket.id, data });
+        socket.broadcast.emit('newPlayer', { netId: socket.id, data });
 
         //Tell us who is here
         const playerList = Object.keys(players).map(id => ({
-            id,
+            netId: id,
             data: {
                 scene: players[id].scene,
                 pos: players[id].pos,
@@ -57,48 +57,54 @@ io.on('connection', (socket) => {
         socket.emit('currentPlayers', playerList);
         socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'white' } });
         if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
-        socket.on('playerNameUpdate', (data) => {
-            if (players[socket.id]) players[socket.id].name = data.name;
-            socket.broadcast.emit('playerNameUpdate', { id: socket.id, data });
+        socket.on('playerNameSend', (name) => {
+            if (players[socket.id]) players[socket.id].name = name;
+            socket.broadcast.emit('playerNameUpdate', { id: socket.id, name });
         });
 
-        socket.on('playerPositionRequest', (data) => {
+        socket.on('playerPositionSend', (data) => {
             if (players[socket.id]) players[socket.id].pos = data.pos;
             socket.broadcast.emit('playerPositionUpdate', { id: socket.id, data });
         });
-        socket.on('playerStateRequest', (data) => {
+        socket.on('playerStateSend', (data) => {
             if (players[socket.id]) players[socket.id].state = data.state;
             socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
         });
-        socket.on('chatMessageRequest', ({ player, message }) => {
+        socket.on('chatMessageSend', ({ player, message }) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message } });
         });
-        socket.on('playerHealthRequest', ({ targetId, reason, amount }) => {
+        socket.on('playerHealthSend', ({ targetId, reason, amount }) => {
             if (!players[targetId]) return;
-            const health = players[targetId].health;
+            console.log(reason);
             switch (reason) {
-                case "damage":
+                case 'damage':
                     if (players[targetId].blocking) {
                         socket.broadcast.emit('playerBlockUpdate', { id: targetId });
                         return;
                     }
-                    players[targetId].health -= amount;
+                    players[targetId].health = Math.max(players[targetId].health - amount, 0);
+                    break;
+                case 'heal':
+                    players[targetId].health = Math.min(players[targetId].health + amount, 100);
+                    break;
+                case 'reset':
+                    players[targetId].health = 100;
                     break;
                 default:
-                    players[targetId].health += amount;
+                    players[targetId].health = Math.max(players[targetId].health - amount, 0);
                     break;
             }
-            socket.broadcast.emit('playerHealthUpdate', {
+            io.emit('playerHealthUpdate', {
                 id: socket.id,
                 data: {
                     targetId,
                     reason,
                     amount,
-                    health,
+                    health: players[targetId].health,
                 }
             });
         });
-        socket.on('playerCCRequest', ({ targetId, type, dir }) => {
+        socket.on('playerCCSend', ({ targetId, type, dir }) => {
             if (!players[targetId]) return;
             switch (type) {
                 case 'knockback':
