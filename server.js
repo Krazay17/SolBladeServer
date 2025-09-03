@@ -9,7 +9,8 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+
 });
 const isLocal = process.env.PORT === '3000' || process.env.NODE_ENV === 'development' || !process.env.PORT;
 
@@ -17,9 +18,11 @@ const isLocal = process.env.PORT === '3000' || process.env.NODE_ENV === 'develop
 let players = {};
 // , id: socket.id, pos: {}, state: "", user: ""
 io.on('connection', (socket) => {
+    socket.offAny();
     players[socket.id] = { socket, lastPing: Date.now(), scene: null, pos: { x: 0, y: 5, z: 0 }, state: null, name: null, money: null };
     console.log('a user connected: ' + socket.id);
     socket.on('disconnect', () => {
+        socket.offAny();
         socket.broadcast.emit('playerDisconnected', socket.id);
         socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' } });
         if (!isLocal) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
@@ -50,6 +53,7 @@ io.on('connection', (socket) => {
                 scene: players[id].scene,
                 pos: players[id].pos,
                 state: players[id].state,
+                health: players[id].health,
                 name: players[id].name,
                 money: players[id].money,
             }
@@ -75,7 +79,6 @@ io.on('connection', (socket) => {
         });
         socket.on('playerHealthSend', ({ targetId, reason, amount }) => {
             if (!players[targetId]) return;
-            console.log(reason);
             switch (reason) {
                 case 'damage':
                     if (players[targetId].blocking) {
