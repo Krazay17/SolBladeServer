@@ -107,7 +107,7 @@ io.on('connection', (socket) => {
                 }
             });
         });
-        socket.on('playerCCSend', ({ targetId, type, dir }) => {
+        socket.on('playerCCSend', ({ targetId, type, dir, duration }) => {
             if (!players[targetId]) return;
             switch (type) {
                 case 'knockback':
@@ -119,7 +119,7 @@ io.on('connection', (socket) => {
                 default:
                     console.warn(`Unknown CC type: ${type}`);
             }
-            socket.broadcast.emit('playerCCUpdate', { id: targetId, data: { type, dir } });
+            socket.broadcast.emit('playerCCUpdate', { id: targetId, data: { type, dir, duration } });
         });
     });
 });
