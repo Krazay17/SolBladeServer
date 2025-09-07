@@ -109,6 +109,9 @@ io.on('connection', (socket) => {
                 socket.broadcast.emit('playerBlockedUpdate', { id: socket.id, blocking, health });
             }
         });
+        socket.on('fx', (data) => {
+            socket.broadcast.emit('fx', data);
+        });
     });
 });
 
