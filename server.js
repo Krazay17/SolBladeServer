@@ -77,49 +77,32 @@ io.on('connection', (socket) => {
         socket.on('chatMessageSend', ({ player, message }) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message } });
         });
-        socket.on('playerHealthSend', ({ targetId, reason, amount }) => {
+        socket.on('playerDamageSend', ({ targetId, dmg, cc }) => {
             if (!players[targetId]) return;
-            switch (reason) {
-                case 'damage':
-                    if (players[targetId].blocking) {
-                        socket.broadcast.emit('playerBlockUpdate', { id: targetId });
-                        return;
-                    }
-                    players[targetId].health = Math.max(players[targetId].health - amount, 0);
-                    break;
-                case 'heal':
-                    players[targetId].health = Math.min(players[targetId].health + amount, 100);
-                    break;
-                case 'reset':
-                    players[targetId].health = 100;
-                    break;
-                default:
-                    players[targetId].health = Math.max(players[targetId].health - amount, 0);
-                    break;
+            if (players[targetId].blocking) {
+                socket.broadcast.emit('playerBlockedUpdate', targetId);
+                return;
             }
-            io.emit('playerHealthUpdate', {
-                id: socket.id,
+            players[targetId].health = Math.max(players[targetId].health - dmg.amount, 0);
+            io.emit('playerDamageUpdate', {
+                targetId,
                 data: {
-                    targetId,
-                    reason,
-                    amount,
                     health: players[targetId].health,
+                    dmg,
+                    cc,
                 }
             });
         });
-        socket.on('playerCCSend', ({ targetId, type, dir, duration }) => {
-            if (!players[targetId]) return;
-            switch (type) {
-                case 'knockback':
-                    if (players[targetId].blocking) {
-                        socket.broadcast.emit('playerBlockUpdate', { id: targetId });
-                        return;
-                    }
-                    break;
-                default:
-                    console.warn(`Unknown CC type: ${type}`);
+        socket.on('playerRespawnUpdate', (data) => {
+            if (players[socket.id]) {
+                players[socket.id].pos = data.pos;
+                players[socket.id].health = data.health || 100;
+                players[socket.id].blocking = false;
             }
-            socket.broadcast.emit('playerCCUpdate', { id: targetId, data: { type, dir, duration } });
+            socket.broadcast.emit('playerRespawnUpdate', { id: socket.id, data });
+        });
+        socket.on('playerBlockUpdate', ({ blocking }) => {
+            if (players[socket.id]) players[socket.id].blocking = blocking;
         });
     });
 });
