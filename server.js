@@ -101,7 +101,7 @@ io.on('connection', (socket) => {
             }
             socket.broadcast.emit('playerRespawnUpdate', { id: socket.id, data });
         });
-        socket.on('playerBlockUpdate', ({ blocking }) => {
+        socket.on('playerBlockUpdate', (blocking) => {
             if (players[socket.id]) players[socket.id].blocking = blocking;
         });
     });
