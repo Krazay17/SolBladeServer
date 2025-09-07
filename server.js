@@ -102,7 +102,12 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('playerRespawnUpdate', { id: socket.id, data });
         });
         socket.on('playerBlockUpdate', (blocking) => {
-            if (players[socket.id]) players[socket.id].blocking = blocking;
+            if (players[socket.id]) {
+                const health = players[socket.id].health;
+                if (health <= 0) return;
+                players[socket.id].blocking = blocking;
+                socket.broadcast.emit('playerBlockedUpdate', { id: socket.id, blocking, health });
+            }
         });
     });
 });
