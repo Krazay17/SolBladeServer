@@ -1,6 +1,8 @@
 import { Server } from "socket.io";
 import { sendDiscordMessage } from "./DiscordStuff.js";
 import http from "http";
+import GameMode from "./src/GameMode.js";
+import PickupManager from "./src/PickupManager.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer();
@@ -14,7 +16,8 @@ const io = new Server(server, {
 });
 const isLocal = process.env.PORT === '3000' || process.env.NODE_ENV === 'development' || !process.env.PORT;
 
-
+const pickups = new PickupManager(io);
+const gameMode = new GameMode("crown", io, pickups);
 let players = {};
 // , id: socket.id, pos: {}, state: "", user: ""
 io.on('connection', (socket) => {
@@ -27,6 +30,7 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' } });
         if (!isLocal) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
+        gameMode.removePlayer(players[socket.id]);
         delete players[socket.id];
     });
     socket.on('heartbeat', () => {
@@ -61,11 +65,13 @@ io.on('connection', (socket) => {
         socket.emit('currentPlayers', playerList);
         socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'white' } });
         if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
+
+        gameMode.addPlayer(players[socket.id]);
+
         socket.on('playerNameSend', (name) => {
             if (players[socket.id]) players[socket.id].name = name;
             socket.broadcast.emit('playerNameUpdate', { id: socket.id, name });
         });
-
         socket.on('playerPositionSend', (data) => {
             if (players[socket.id]) players[socket.id].pos = data.pos;
             socket.broadcast.emit('playerPositionUpdate', { id: socket.id, data });
@@ -112,7 +118,17 @@ io.on('connection', (socket) => {
         socket.on('fx', (data) => {
             socket.broadcast.emit('fx', data);
         });
+        socket.emit('currentPickups', pickups.getAllPickups());
+        socket.on('pickupCollected', ({ itemId }) => {
+            const pickup = pickups.getPickup(itemId)
+            if (pickup && pickup.active) {
+                io.emit('pickupCollected', { playerId: socket.id, itemId });
+                pickups.removePickup(itemId);
+            }
+        });
+        // player joined
     });
+    // player connected
 });
 
 
