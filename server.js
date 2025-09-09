@@ -22,7 +22,15 @@ let players = {};
 // , id: socket.id, pos: {}, state: "", user: ""
 io.on('connection', (socket) => {
     socket.offAny();
-    players[socket.id] = { socket, lastPing: Date.now(), scene: null, pos: { x: 0, y: 5, z: 0 }, state: null, name: null, money: null };
+    players[socket.id] = {
+        socket,
+        lastPing: Date.now(),
+        scene: null,
+        pos: { x: 0, y: 5, z: 0 },
+        state: null,
+        name: null,
+        money: null
+    };
     console.log('a user connected: ' + socket.id);
     socket.on('disconnect', () => {
         socket.offAny();
@@ -129,9 +137,11 @@ io.on('connection', (socket) => {
         });
         socket.on('pickupCrown', () => {
             io.emit('pickupCrown', { playerId: socket.id });
+            gameMode.pickupCrown(players[socket.id]);
         })
         socket.on('dropCrown', (position) => {
             const crownPickup = pickups.spawnPickup('crown', position);
+            gameMode.dropCrown();
             io.emit('dropCrown', { playerId: socket.id });
         });
 

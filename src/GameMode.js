@@ -18,6 +18,23 @@ export default class GameMode {
         this.crown = this.pickupManager.spawnPickup('crown', { x: 0, y: 2, z: 0 }, false, crownId);
     }
 
+    pickupCrown(player) {
+        if (player) {
+            this.crownPointsInterval = setInterval(() => {
+                player.score += 1;
+                this.io.emit('crownScoreIncrease', { playerId: player.socket.id, score: player.score });
+                if (player.score >= this.winningScore) {
+                    clearInterval(this.crownPointsInterval);
+                    this.endGame(player.socket.id);
+                }
+            }, 1000);
+        }
+    }
+
+    dropCrown() {
+        clearInterval(this.crownPointsInterval);
+    }
+
     spawnRandomEnergy() {
         const amount = 10;
         for (let i = 0; i < amount; i++) {
@@ -34,12 +51,15 @@ export default class GameMode {
 
     endGame(winnerId) {
         this.gameActive = false;
-        console.log(`Game Over! Winner is Player ID: ${winnerId}`);
-        this.io.emit('gameOver', { winnerId });
-        this.pickupManager.removePickup(null, this.crown);
+
+        this.dropCrown();
+        this.io.emit('dropCrown', { playerId: winnerId });
+        this.io.emit('gameEnd', winnerId);
+        this.startGame();
     }
 
     addPlayer(player) {
+        player.score = 0;
         this.players.push(player);
         if (this.players.length > 0 && !this.gameInit) {
             this.initGame();
@@ -53,10 +73,6 @@ export default class GameMode {
         this.players = this.players.filter(p => p !== player);
         if (this.players.length < 2 && this.gameActive) {
             this.endGame(null);
-        }
-        if (this.players.length === 0) {
-            this.gameInit = false;
-            this.gameActive = false;
         }
     }
 
