@@ -73,7 +73,6 @@ export default class GameMode {
 
     removePlayer(player) {
         this.players = this.players.filter(p => p !== player);
-        console.log(player);
         if (player.hasCrown) {
             this.io.emit('dropCrown', { playerId: player.socket.id });
         }
