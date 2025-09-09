@@ -4,7 +4,7 @@ export default class PickupManager {
         this.pickups = {};
     }
 
-    spawnPickup(type, position, doesRespawn = true, itemId) {
+    spawnPickup(type, position, doesRespawn = false, itemId) {
         const rnd = Math.floor(Math.random() * 1000000).toString();
         const id = itemId || rnd;
         const pickup = { type, position, itemId: id, active: true, doesRespawn };
@@ -17,16 +17,16 @@ export default class PickupManager {
         this.pickups[id] = pickup;
     }
 
-    removePickup(id) {
-        this.pickups[id].active = false;
-        if (!this.pickups[id].doesRespawn) return;
+    removePickup(id, item) {
+        const pickup = id ? this.pickups[id] : item;
+        pickup.active = false;
+        if (!pickup.doesRespawn) return;
         const timeout = 15000;
         setTimeout(() => {
             this.spawnPickup(
-                this.pickups[id].type,
-                this.pickups[id].position,
+                pickup.type,
+                pickup.position,
                 true,
-                id
             )
         }, timeout);
     }

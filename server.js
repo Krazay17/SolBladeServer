@@ -83,7 +83,7 @@ io.on('connection', (socket) => {
         socket.on('chatMessageSend', ({ player, message }) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message } });
         });
-        socket.on('playerDamageSend', ({ targetId, dmg, cc }) => {
+        socket.on('playerDamageSend', ({ attacker, targetId, dmg, cc }) => {
             if (!players[targetId]) return;
             if (players[targetId].blocking) {
                 socket.broadcast.emit('playerBlockedUpdate', targetId);
@@ -93,6 +93,7 @@ io.on('connection', (socket) => {
             io.emit('playerDamageUpdate', {
                 targetId,
                 data: {
+                    attacker,
                     health: players[targetId].health,
                     dmg,
                     cc,
@@ -126,6 +127,14 @@ io.on('connection', (socket) => {
                 pickups.removePickup(itemId);
             }
         });
+        socket.on('pickupCrown', () => {
+            io.emit('pickupCrown', { playerId: socket.id });
+        })
+        socket.on('dropCrown', (position) => {
+            const crownPickup = pickups.spawnPickup('crown', position);
+            io.emit('dropCrown', { playerId: socket.id });
+        });
+
         // player joined
     });
     // player connected
