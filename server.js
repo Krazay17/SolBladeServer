@@ -3,6 +3,7 @@ import { sendDiscordMessage } from "./DiscordStuff.js";
 import http from "http";
 import GameMode from "./src/GameMode.js";
 import PickupManager from "./src/PickupManager.js";
+import MyEventEmitter from "./src/MyEventEmitter.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer();
@@ -35,6 +36,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         socket.offAny();
         socket.broadcast.emit('playerDisconnected', socket.id);
+        MyEventEmitter.emit('playerDisconnected', socket.id)
         socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' } });
         if (!isLocal) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
@@ -136,10 +138,12 @@ io.on('connection', (socket) => {
             }
         });
         socket.on('pickupCrown', () => {
+            players[socket.id].hasCrown = true;
             io.emit('pickupCrown', { playerId: socket.id });
             gameMode.pickupCrown(players[socket.id]);
         })
         socket.on('dropCrown', (position) => {
+            players[socket.id].hasCrown = false;
             const crownPickup = pickups.spawnPickup('crown', position);
             gameMode.dropCrown();
             io.emit('dropCrown', { playerId: socket.id });

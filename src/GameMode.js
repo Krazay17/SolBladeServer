@@ -7,6 +7,7 @@ export default class GameMode {
         this.pickupManager = pickupManager;
         this.gameInit = false;
         this.gameActive = false;
+        this.crownPointsInterval = null;
     }
 
     startGame() {
@@ -20,6 +21,7 @@ export default class GameMode {
 
     pickupCrown(player) {
         if (player) {
+            clearInterval(this.crownPointsInterval);
             this.crownPointsInterval = setInterval(() => {
                 player.score += 1;
                 this.io.emit('crownScoreIncrease', { playerId: player.socket.id, score: player.score });
@@ -71,6 +73,10 @@ export default class GameMode {
 
     removePlayer(player) {
         this.players = this.players.filter(p => p !== player);
+        console.log(player);
+        if (player.hasCrown) {
+            this.io.emit('dropCrown', { playerId: player.socket.id });
+        }
         if (this.players.length < 2 && this.gameActive) {
             this.endGame(null);
         }
