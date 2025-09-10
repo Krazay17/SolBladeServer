@@ -22,7 +22,8 @@ const gameMode = new GameMode("crown", io, pickups);
 let players = {};
 // , id: socket.id, pos: {}, state: "", user: ""
 io.on('connection', (socket) => {
-    socket.offAny();
+    if (socket.bound) return;
+    socket.bound = true;
     players[socket.id] = {
         socket,
         lastPing: Date.now(),
@@ -34,7 +35,6 @@ io.on('connection', (socket) => {
     };
     console.log('a user connected: ' + socket.id);
     socket.on('disconnect', () => {
-        socket.offAny();
         socket.broadcast.emit('playerDisconnected', socket.id);
         MyEventEmitter.emit('playerDisconnected', socket.id)
         socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' } });
@@ -155,17 +155,17 @@ io.on('connection', (socket) => {
 });
 
 
-setInterval(() => {
-    Object.keys(players).forEach(key => {
-        const player = players[key];
-        if (!player) return;
+// setInterval(() => {
+//     Object.keys(players).forEach(key => {
+//         const player = players[key];
+//         if (!player) return;
 
-        if (Date.now() - player.lastPing > 5000) {
-            console.log(`Disconnecting inactive player: ${key}`);
-            player.socket.disconnect(true);
-        }
-    });
-}, 2500);
+//         if (Date.now() - player.lastPing > 15000) {
+//             console.log(`Disconnecting inactive player: ${key}`);
+//             player.socket.disconnect(true);
+//         }
+//     });
+// }, 5000);
 
 server.listen(PORT);
 console.log(`Server is running on port ${PORT}`);
