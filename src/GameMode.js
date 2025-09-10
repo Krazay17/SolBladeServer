@@ -12,15 +12,15 @@ export default class GameMode {
 
     startGame() {
         this.gameActive = true;
+        this.io.emit('crownGameStarted');
         this.players.forEach(player => {
             player.score = 0; // Reset player score
         });
-        const crownId = this.crown ? this.crown.itemId : null;
-        this.crown = this.pickupManager.spawnPickup('crown', { x: 0, y: 2, z: 0 }, false, crownId);
     }
 
     pickupCrown(player) {
         if (player) {
+            if (!this.gameActive) this.startGame();
             clearInterval(this.crownPointsInterval);
             this.crownPointsInterval = setInterval(() => {
                 player.score += 1;
@@ -33,22 +33,22 @@ export default class GameMode {
         }
     }
 
-    dropCrown() {
-        clearInterval(this.crownPointsInterval);
+    getScores() {
+        return this.players.map(player => ({
+            id: player.socket.id,
+            score: player.score
+        }));
     }
 
-    spawnRandomEnergy() {
-        const amount = 10;
-        for (let i = 0; i < amount; i++) {
-            const x = (Math.random() * 2 - 1) * 50;
-            const y = Math.random() * 5;
-            const z = (Math.random() * 2 - 1) * 50;
-            this.pickupManager.spawnPickup('energy', { x, y, z }, true);
-        }
+    dropCrown(pos = { x: 0, y: 1, z: 0 }) {
+        clearInterval(this.crownPointsInterval);
+        this.crown = this.pickupManager.spawnPickup('crown', pos, false);
     }
+
+
     initGame() {
         this.gameInit = true;
-        this.spawnRandomEnergy();
+        this.dropCrown();
     }
 
     endGame(winnerId) {
@@ -56,8 +56,11 @@ export default class GameMode {
 
         this.dropCrown();
         this.io.emit('dropCrown', { playerId: winnerId });
-        this.io.emit('gameEnd', winnerId);
-        this.startGame();
+        this.io.emit('crownGameEnded', winnerId);
+        this.players.forEach(player => {
+            player.hasCrown = false;
+        });
+        this.initGame();
     }
 
     addPlayer(player) {
@@ -66,15 +69,16 @@ export default class GameMode {
         if (this.players.length > 0 && !this.gameInit) {
             this.initGame();
         }
-        if (this.players.length > 1 && !this.gameActive) {
-            this.startGame();
+        if (this.gameActive) {
+            player.socket.emit('crownGameStarted', this.getScores());
+
         }
     }
 
     removePlayer(player) {
         this.players = this.players.filter(p => p !== player);
         if (player.hasCrown) {
-            this.io.emit('dropCrown', { playerId: player.socket.id });
+            this.dropCrown();
         }
         if (this.players.length < 2 && this.gameActive) {
             this.endGame(null);

@@ -2,6 +2,7 @@ export default class PickupManager {
     constructor(io) {
         this.io = io;
         this.pickups = {};
+        this.initPickups();
     }
 
     spawnPickup(type, position, doesRespawn = false, itemId) {
@@ -37,5 +38,19 @@ export default class PickupManager {
 
     getAllPickups() {
         return Object.keys(this.pickups).map(id => this.pickups[id]);
+    }
+
+    initPickups() {
+        this.spawnRandomEnergy();
+    }
+
+    spawnRandomEnergy() {
+        const amount = 10;
+        for (let i = 0; i < amount; i++) {
+            const x = (Math.random() * 2 - 1) * 50;
+            const y = Math.random() * 5;
+            const z = (Math.random() * 2 - 1) * 50;
+            this.spawnPickup('energy', { x, y, z }, true);
+        }
     }
 }

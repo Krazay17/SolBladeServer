@@ -22,6 +22,7 @@ const gameMode = new GameMode("crown", io, pickups);
 let players = {};
 // , id: socket.id, pos: {}, state: "", user: ""
 io.on('connection', (socket) => {
+
     socket.offAny();
     players[socket.id] = {
         socket,
@@ -70,6 +71,7 @@ io.on('connection', (socket) => {
                 health: players[id].health,
                 name: players[id].name,
                 money: players[id].money,
+                hasCrown: players[id].hasCrown || false,
             }
         }));
         socket.emit('currentPlayers', playerList);
@@ -139,14 +141,13 @@ io.on('connection', (socket) => {
         });
         socket.on('pickupCrown', () => {
             players[socket.id].hasCrown = true;
-            io.emit('pickupCrown', { playerId: socket.id });
+            socket.broadcast.emit('pickupCrown', { playerId: socket.id });
             gameMode.pickupCrown(players[socket.id]);
         })
         socket.on('dropCrown', (position) => {
             players[socket.id].hasCrown = false;
-            const crownPickup = pickups.spawnPickup('crown', position);
-            gameMode.dropCrown();
-            io.emit('dropCrown', { playerId: socket.id });
+            socket.broadcast.emit('dropCrown', { playerId: socket.id });
+            gameMode.dropCrown(position);
         });
 
         // player joined
