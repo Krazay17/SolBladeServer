@@ -22,7 +22,6 @@ const gameMode = new GameMode("crown", io, pickups);
 let players = {};
 // , id: socket.id, pos: {}, state: "", user: ""
 io.on('connection', (socket) => {
-
     socket.offAny();
     players[socket.id] = {
         socket,
