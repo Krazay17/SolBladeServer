@@ -13,7 +13,8 @@ const io = new Server(server, {
         origin: "*",
         methods: ["GET", "POST"]
     },
-
+    pingInterval: 10000,
+    pingTimeout: 5000,
 });
 const isLocal = process.env.PORT === '3000' || process.env.NODE_ENV === 'development' || !process.env.PORT;
 
