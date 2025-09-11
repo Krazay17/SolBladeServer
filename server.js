@@ -24,6 +24,26 @@ let players = {};
 io.on('connection', (socket) => {
     if (socket.bound) return;
     socket.bound = true;
+
+    socket.on("join-voice", () => {
+        // tell everyone else to start connecting to this peer
+        socket.broadcast.emit("new-peer", socket.id);
+    });
+
+    // Tell others a new client joined
+    socket.broadcast.emit("new-peer", socket.id);
+
+    // Relay messages to a specific peer
+    socket.on("offer", ({ targetId, offer }) => {
+        io.to(targetId).emit("offer", { from: socket.id, offer });
+    });
+    socket.on("answer", ({ targetId, answer }) => {
+        io.to(targetId).emit("answer", { from: socket.id, answer });
+    });
+    socket.on("candidate", ({ targetId, candidate }) => {
+        io.to(targetId).emit("candidate", { from: socket.id, candidate });
+    });
+
     players[socket.id] = {
         socket,
         lastPing: Date.now(),
@@ -36,6 +56,7 @@ io.on('connection', (socket) => {
     console.log('a user connected: ' + socket.id);
     socket.on('disconnect', () => {
         socket.broadcast.emit('playerDisconnected', socket.id);
+        socket.broadcast.emit("peer-disconnect", socket.id);
         MyEventEmitter.emit('playerDisconnected', socket.id)
         socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' } });
         if (!isLocal) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
