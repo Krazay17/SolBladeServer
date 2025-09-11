@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('playerDisconnected', socket.id);
         socket.broadcast.emit("peer-disconnect", socket.id);
         MyEventEmitter.emit('playerDisconnected', socket.id)
-        socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' } });
+        io.emit('serverMessage', { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' });
         if (!isLocal) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
         gameMode.removePlayer(players[socket.id]);
@@ -96,11 +96,16 @@ io.on('connection', (socket) => {
             }
         }));
         socket.emit('currentPlayers', playerList);
-        socket.broadcast.emit('chatMessageUpdate', { id: 111, data: { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'white' } });
+        io.emit('serverMessage', { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'yellow' });
         if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
 
         gameMode.addPlayer(players[socket.id]);
 
+        socket.on('playerDied', ({ playerId, source }) => {
+            if (players[playerId]) {
+                io.emit('serverMessage', { player: 'Server', message: `${players[playerId].name} slain by: ${source}`, color: 'orange' });
+            }
+        });
         socket.on('playerNameSend', (name) => {
             if (players[socket.id]) players[socket.id].name = name;
             socket.broadcast.emit('playerNameUpdate', { id: socket.id, name });
@@ -113,8 +118,8 @@ io.on('connection', (socket) => {
             if (players[socket.id]) players[socket.id].state = data.state;
             socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
         });
-        socket.on('chatMessageSend', ({ player, message }) => {
-            socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message } });
+        socket.on('chatMessageSend', ({ player, message, color }) => {
+            socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message, color } });
         });
         socket.on('playerDamageSend', ({ attacker, targetId, dmg, cc }) => {
             if (!players[targetId]) return;
