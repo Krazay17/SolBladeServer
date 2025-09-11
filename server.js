@@ -170,6 +170,10 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('dropCrown', { playerId: socket.id });
             gameMode.dropCrown(position);
         });
+        socket.on('bootPlayer', (targetId) => {
+            if (!players[targetId]) return;
+            players[targetId].socket.disconnect(true);
+        });
 
         // player joined
     });
