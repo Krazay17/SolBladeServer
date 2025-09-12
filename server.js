@@ -78,6 +78,8 @@ io.on('connection', (socket) => {
         players[socket.id].money = data.money;
         players[socket.id].health = data.health || 100;
         players[socket.id].blocking = false;
+        players[socket.id].parry = false;
+        players[socket.id].hasCrown = false;
 
         //Tell players we joined
         socket.broadcast.emit('newPlayer', { netId: socket.id, data });
@@ -127,6 +129,12 @@ io.on('connection', (socket) => {
                 socket.broadcast.emit('playerBlockedUpdate', targetId);
                 return;
             }
+            if (dmg.type === 'melee') {
+                if (players[targetId].parry) {
+                    io.emit('playerParried', { id: targetId, attacker, health: players[targetId].health });
+                    return;
+                }
+            }
             players[targetId].health = Math.max(players[targetId].health - dmg.amount, 0);
             io.emit('playerDamageUpdate', {
                 targetId,
@@ -137,6 +145,12 @@ io.on('connection', (socket) => {
                     cc,
                 }
             });
+        });
+        socket.on('playerParryUpdate', (doesParry) => {
+            if (players[socket.id]) {
+                players[socket.id].parry = doesParry;
+                socket.broadcast.emit('playerParryUpdate', { id: socket.id, parry: doesParry });
+            }
         });
         socket.on('playerRespawnUpdate', (data) => {
             if (players[socket.id]) {
