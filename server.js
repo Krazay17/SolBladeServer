@@ -146,6 +146,13 @@ io.on('connection', (socket) => {
                 }
             });
         });
+        socket.on('takeHealing', (data) => {
+            const player = players[socket.id];
+            if (!player) return;
+            const { dealer, heal } = data
+            player.health = Math.min(100, player.health + heal.amount);
+            socket.broadcast.emit('healingUpdate', { id: socket.id, health: player.health, data });
+        })
         socket.on('playerParryUpdate', (doesParry) => {
             if (players[socket.id]) {
                 players[socket.id].parry = doesParry;

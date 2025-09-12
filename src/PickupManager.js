@@ -26,7 +26,7 @@ export default class PickupManager {
         setTimeout(() => {
             this.spawnPickup(
                 pickup.type,
-                pickup.position,
+                this.randomLocation(),
                 true,
             )
         }, timeout);
@@ -42,15 +42,27 @@ export default class PickupManager {
 
     initPickups() {
         this.spawnRandomEnergy();
+        this.spawnRandomHealth();
+    }
+
+    randomLocation() {
+        const x = (Math.random() * 2 - 1) * 50;
+        const y = Math.random() * 5;
+        const z = (Math.random() * 2 - 1) * 50;
+        return { x, y, z };
+    }
+
+    spawnRandomHealth() {
+        const amount = 10;
+        for (let i = 0; i < amount; i++) {
+            this.spawnPickup('health', this.randomLocation(), true);
+        }
     }
 
     spawnRandomEnergy() {
         const amount = 10;
         for (let i = 0; i < amount; i++) {
-            const x = (Math.random() * 2 - 1) * 50;
-            const y = Math.random() * 5;
-            const z = (Math.random() * 2 - 1) * 50;
-            this.spawnPickup('energy', { x, y, z }, true);
+            this.spawnPickup('energy', this.randomLocation(), true);
         }
     }
 }
