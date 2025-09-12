@@ -105,7 +105,7 @@ io.on('connection', (socket) => {
 
         socket.on('playerDied', ({ playerId, source }) => {
             if (players[playerId]) {
-                io.emit('serverMessage', { player: 'Server', message: `${players[playerId].name} slain by: ${source}`, color: 'orange' });
+                io.emit('serverMessage', { player: 'Server', message: `${players[playerId].name} slain by: ${players[source]?.name || source}`, color: 'orange' });
             }
         });
         socket.on('playerNameSend', (name) => {
@@ -129,12 +129,12 @@ io.on('connection', (socket) => {
                 socket.broadcast.emit('playerBlockedUpdate', targetId);
                 return;
             }
-            if (dmg.type === 'melee') {
-                if (players[targetId].parry) {
-                    io.emit('playerParried', { id: targetId, attacker, health: players[targetId].health });
-                    return;
-                }
+            //if (dmg.type === 'melee') {
+            if (players[targetId].parry) {
+                io.emit('playerParried', { id: targetId, attacker, health: players[targetId].health });
+                return;
             }
+            //}
             players[targetId].health = Math.max(players[targetId].health - dmg.amount, 0);
             io.emit('playerDamageUpdate', {
                 targetId,
@@ -169,7 +169,7 @@ io.on('connection', (socket) => {
             }
         });
         socket.on('fx', (data) => {
-            socket.broadcast.emit('fx', data);
+            io.emit('fx', data);
         });
         socket.emit('currentPickups', pickups.getAllPickups());
         socket.on('pickupCollected', ({ itemId }) => {
