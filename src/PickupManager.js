@@ -47,7 +47,7 @@ export default class PickupManager {
 
     randomLocation() {
         const x = (Math.random() * 2 - 1) * 30;
-        const y = Math.random() * 20;
+        const y = Math.random() * 14 + 1;
         const z = (Math.random() * 2 - 1) * 30;
         return { x, y, z };
     }
