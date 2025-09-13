@@ -124,23 +124,24 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message, color } });
         });
         socket.on('playerDamageSend', ({ attacker, targetId, dmg, cc }) => {
-            if (!players[targetId]) return;
-            if (players[targetId].blocking) {
+            const player = players[targetId];
+            if (!player) return;
+            if (player.blocking) {
                 socket.broadcast.emit('playerBlockedUpdate', targetId);
                 return;
             }
             //if (dmg.type === 'melee') {
-            if (players[targetId].parry) {
-                io.emit('playerParried', { id: targetId, attacker, health: players[targetId].health });
+            if (player.parry) {
+                io.emit('playerParried', { id: targetId, attacker, health: player.health, dmgType: dmg.type });
                 return;
             }
             //}
-            players[targetId].health = Math.max(players[targetId].health - dmg.amount, 0);
+            player.health = Math.max(player.health - dmg.amount, 0);
             io.emit('playerDamageUpdate', {
                 targetId,
                 data: {
                     attacker,
-                    health: players[targetId].health,
+                    health: player.health,
                     dmg,
                     cc,
                 }
