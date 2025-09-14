@@ -16,12 +16,14 @@ const io = new Server(server, {
     pingInterval: 10000,
     pingTimeout: 5000,
 });
-const isLocal = process.env.PORT === '3000' || process.env.NODE_ENV === 'development' || !process.env.PORT;
+const isLocal = process.env.PORT === '3000'
+    || process.env.NODE_ENV === 'development'
+    || !process.env.PORT;
 
 const pickups = new PickupManager(io);
 const gameMode = new GameMode("crown", io, pickups);
 let players = {};
-// , id: socket.id, pos: {}, state: "", user: ""
+
 io.on('connection', (socket) => {
     if (socket.bound) return;
     socket.bound = true;
@@ -130,12 +132,10 @@ io.on('connection', (socket) => {
                 socket.broadcast.emit('playerBlockedUpdate', targetId);
                 return;
             }
-            //if (dmg.type === 'melee') {
             if (player.parry) {
                 io.emit('playerParried', { id: targetId, attacker, health: player.health, dmgType: dmg.type });
                 return;
             }
-            //}
             player.health = Math.max(player.health - dmg.amount, 0);
             io.emit('playerDamageUpdate', {
                 targetId,
