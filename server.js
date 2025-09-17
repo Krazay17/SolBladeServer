@@ -7,18 +7,20 @@ import MyEventEmitter from "./src/MyEventEmitter.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer();
+const isLocal = process.env.PORT === '3000'
+    || process.env.NODE_ENV === 'development'
+    || !process.env.PORT;
+const origin = isLocal ? 'http://localhost:5173' : "https://solblade.online";
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: origin,
         methods: ["GET", "POST"]
     },
     pingInterval: 10000,
     pingTimeout: 5000,
+    cleanupEmptyChildNamespaces: true,
 });
-const isLocal = process.env.PORT === '3000'
-    || process.env.NODE_ENV === 'development'
-    || !process.env.PORT;
 
 const pickups = new PickupManager(io);
 const gameMode = new GameMode("crown", io, pickups);
@@ -27,6 +29,8 @@ let players = {};
 io.on('connection', (socket) => {
     if (socket.bound) return;
     socket.bound = true;
+    const ip = socket.handshake.address;
+    console.log(`New connection from ${ip} with id: ${socket.id}`);
 
     socket.on("join-voice", () => {
         // tell everyone else to start connecting to this peer
@@ -56,7 +60,6 @@ io.on('connection', (socket) => {
         name: null,
         money: null
     };
-    console.log('a user connected: ' + socket.id);
     socket.on('disconnect', () => {
         socket.broadcast.emit('playerDisconnected', socket.id);
         socket.broadcast.emit("peer-disconnect", socket.id);
