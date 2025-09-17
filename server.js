@@ -204,6 +204,19 @@ io.on('connection', (socket) => {
             if (!players[targetId]) return;
             players[targetId].socket.disconnect(true);
         });
+        socket.on('projectileCreated', (data) => {
+            const player = players[socket.id];
+            if (!player) return;
+            socket.broadcast.emit('projectileCreated', { id: socket.id, data });
+        })
+        socket.on('projectileMoved', data => {
+            const player = players[socket.id];
+            if (!player) return;
+            socket.broadcast.emit('projectileMoved', { id: socket.id, data })
+        })
+        socket.on('projectileDestroyed', data => {
+            socket.broadcast.emit('projectileDestroyed', data);
+        })
 
         // player joined
     });
