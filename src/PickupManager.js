@@ -5,10 +5,10 @@ export default class PickupManager {
         this.initPickups();
     }
 
-    spawnPickup(type, position, doesRespawn = false, itemId) {
+    spawnPickup(type, position, doesRespawn = false, itemId = null, item = null) {
         const rnd = Math.floor(Math.random() * 1000000).toString();
         const id = itemId || rnd;
-        const pickup = { type, position, itemId: id, active: true, doesRespawn };
+        const pickup = { type, position, itemId: id, active: true, doesRespawn, item };
         this.pickups[id] = pickup;
         this.io.emit('spawnPickup', pickup);
         return pickup;
@@ -43,6 +43,7 @@ export default class PickupManager {
     initPickups() {
         this.spawnRandomEnergy();
         this.spawnRandomHealth();
+        this.spawnRandomItems();
     }
 
     randomLocation() {
@@ -50,6 +51,13 @@ export default class PickupManager {
         const y = Math.random() * 10 + 1;
         const z = (Math.random() * 2 - 1) * 30;
         return { x, y, z };
+    }
+
+    spawnRandomItems() {
+        const amount = 5;
+        for (let i = 0; i < amount; i++) {
+            this.spawnPickup('item', this.randomLocation(), true);
+        }
     }
 
     spawnRandomHealth() {

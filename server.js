@@ -180,7 +180,7 @@ io.on('connection', (socket) => {
             }
         });
         socket.on('fx', (data) => {
-            io.emit('fx', data);
+            socket.broadcast.emit('fx', data);
         });
         socket.emit('currentPickups', pickups.getAllPickups());
         socket.on('pickupCollected', ({ itemId }) => {
