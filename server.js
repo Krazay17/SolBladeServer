@@ -208,15 +208,19 @@ io.on('connection', (socket) => {
             const player = players[socket.id];
             if (!player) return;
             socket.broadcast.emit('projectileCreated', { id: socket.id, data });
-        })
+        });
         socket.on('projectileMoved', data => {
             const player = players[socket.id];
             if (!player) return;
             socket.broadcast.emit('projectileMoved', { id: socket.id, data })
-        })
+        });
         socket.on('projectileDestroyed', data => {
             socket.broadcast.emit('projectileDestroyed', data);
-        })
+        });
+        socket.on('playerDropItem', (data) => {
+            console.log('dropItem');
+            pickups.spawnPickup('item', data.pos, false, null, data.item)
+        });
 
         // player joined
     });
