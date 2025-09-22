@@ -17,9 +17,6 @@ const io = new Server(server, {
         origin: origin,
         methods: ["GET", "POST"]
     },
-    pingInterval: 10000,
-    pingTimeout: 5000,
-    cleanupEmptyChildNamespaces: true,
 });
 
 const pickups = new PickupManager(io);
