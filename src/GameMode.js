@@ -42,13 +42,16 @@ export default class GameMode {
 
     dropCrown(pos = { x: 0, y: 1, z: 0 }) {
         clearInterval(this.crownPointsInterval);
-        this.crown = this.pickupManager.spawnPickup('crown', pos, false);
+        this.crown = this.pickupManager.spawnPickup('crown', pos, false, 9999991);
+        this.crown.active = true;
     }
 
 
     initGame() {
-        this.gameInit = true;
-        this.dropCrown();
+        if (!this.gameInit) {
+            this.gameInit = true;
+            this.dropCrown();
+        }
     }
 
     endGame(winnerId) {
@@ -60,7 +63,6 @@ export default class GameMode {
         this.players.forEach(player => {
             player.hasCrown = false;
         });
-        this.initGame();
     }
 
     addPlayer(player) {
@@ -77,11 +79,10 @@ export default class GameMode {
 
     removePlayer(player) {
         this.players = this.players.filter(p => p !== player);
-        if (player.hasCrown) {
-            this.dropCrown();
-        }
         if (this.players.length < 2 && this.gameActive) {
             this.endGame(null);
+        } else if (player.hasCrown) {
+            this.dropCrown();
         }
     }
 
