@@ -19,6 +19,7 @@ const io = new Server(server, {
     },
     connectTimeout: 5000,
     pingInterval: 10000,
+    pingTimeout: 20000,
     cleanupEmptyChildNamespaces: true,
 });
 
@@ -125,6 +126,10 @@ io.on('connection', (socket) => {
             if (players[socket.id]) players[socket.id].state = data.state;
             socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
         });
+        socket.on('playAnimation', (data) => {
+            if (players[socket.id]) players[socket.id].anim = data;
+            socket.broadcast.emit('playAnimation', { id: socket.id, data })
+        })
         socket.on('chatMessageSend', ({ player, message, color }) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message, color } });
         });
@@ -183,16 +188,17 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('fx', data);
         });
         socket.emit('currentPickups', pickups.getAllPickups());
-        socket.on('pickupCollected', ({ itemId }) => {
-            const pickup = pickups.getPickup(itemId)
+        socket.on('pickupCollected', ({ netId }) => {
+            const pickup = pickups.getPickup(netId)
             if (pickup && pickup.active) {
-                io.emit('pickupCollected', { playerId: socket.id, itemId });
-                pickups.removePickup(itemId);
+                io.emit('pickupCollected', { playerId: socket.id, netId });
+                pickups.removePickup(netId);
             }
         });
         socket.on('pickupCrown', () => {
             players[socket.id].hasCrown = true;
             socket.broadcast.emit('pickupCrown', { playerId: socket.id });
+            io.emit('pickupCollected', { playerId: socket.id, netId: '9999991' });
             gameMode.pickupCrown(players[socket.id]);
         })
         socket.on('dropCrown', (position) => {
@@ -218,9 +224,11 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('projectileDestroyed', data);
         });
         socket.on('playerDropItem', (data) => {
-            console.log('dropItem');
             pickups.spawnPickup('item', data.pos, false, null, data.item)
         });
+        socket.on('spawnLocations', (data) => {
+            pickups.updateSpawnLocations(data);
+        })
 
         // player joined
     });

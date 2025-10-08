@@ -8,6 +8,8 @@ export default class GameMode {
         this.gameInit = false;
         this.gameActive = false;
         this.crownPointsInterval = null;
+
+        this.crownId = '9999991'
     }
 
     startGame() {
@@ -20,6 +22,7 @@ export default class GameMode {
 
     pickupCrown(player) {
         if (player) {
+            this.pickupManager.removePickup(this.crownId, this.crown);
             if (!this.gameActive) this.startGame();
             clearInterval(this.crownPointsInterval);
             this.crownPointsInterval = setInterval(() => {
@@ -42,10 +45,9 @@ export default class GameMode {
 
     dropCrown(pos = { x: 0, y: 1, z: 0 }) {
         clearInterval(this.crownPointsInterval);
-        this.crown = this.pickupManager.spawnPickup('crown', pos, false, 9999991);
+        this.crown = this.pickupManager.spawnPickup('crown', pos, false, this.crownId);
         this.crown.active = true;
     }
-
 
     initGame() {
         if (!this.gameInit) {
