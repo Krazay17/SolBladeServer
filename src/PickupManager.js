@@ -7,7 +7,7 @@ export default class PickupManager {
         this.energyLocations = [];
         this.locationSpawns = false;
         this.pickupId = 9999;
-        this.initPickups();
+        //this.initPickups();
     }
     generateId() {
         return (this.pickupId++).toString();

@@ -3,7 +3,7 @@ import { sendDiscordMessage } from "./DiscordStuff.js";
 import http from "http";
 import GameMode from "./src/GameMode.js";
 import PickupManager from "./src/PickupManager.js";
-import MyEventEmitter from "./src/MyEventEmitter.js";
+import ActorManager from "./src/ActorManager.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer();
@@ -23,9 +23,12 @@ const io = new Server(server, {
     cleanupEmptyChildNamespaces: true,
 });
 
+const actorManager = new ActorManager(io);
 const pickups = new PickupManager(io);
 const gameMode = new GameMode("crown", io, pickups);
 let players = {};
+
+let testFireballTimer = null;
 
 io.on('connection', (socket) => {
     if (socket.bound) return;
@@ -52,66 +55,54 @@ io.on('connection', (socket) => {
         io.to(targetId).emit("candidate", { from: socket.id, candidate });
     });
 
-    players[socket.id] = {
-        socket,
-        lastPing: Date.now(),
-        scene: null,
-        pos: { x: 0, y: 5, z: 0 },
-        state: null,
-        name: null,
-        money: null
-    };
     socket.on('disconnect', () => {
         socket.broadcast.emit('playerDisconnected', socket.id);
         socket.broadcast.emit("peer-disconnect", socket.id);
-        MyEventEmitter.emit('playerDisconnected', socket.id)
-        io.emit('serverMessage', { player: 'Server', message: `Player Disconnected: ${players[socket.id].name}!`, color: 'red' });
+        io.emit('serverMessage', { player: 'Server', message: `Player Disconnected: ${players[socket.id]?.name || 'null'}!`, color: 'red' });
         if (!isLocal) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
-        gameMode.removePlayer(players[socket.id]);
+        //gameMode.removePlayer(players[socket.id]);
         delete players[socket.id];
     });
-    socket.on('heartbeat', () => {
-        players[socket.id].lastPing = Date.now();
-        socket.emit('heartbeatAck');
-    })
+    // socket.on('heartbeat', () => {
+    //     players[socket.id].lastPing = Date.now();
+    //     socket.emit('heartbeatAck');
+    // })
 
     socket.on('joinGame', (data) => {
-        players[socket.id].scene = data.scene;
-        players[socket.id].pos = data.pos;
-        players[socket.id].state = data.state;
-        players[socket.id].name = data.name;
-        players[socket.id].money = data.money;
-        players[socket.id].health = data.health || 100;
-        players[socket.id].blocking = false;
-        players[socket.id].parry = false;
-        players[socket.id].hasCrown = false;
+        const player = actorManager.addActor({ ...data, netId: socket.id })
+        players[socket.id] = player;
+        socket.emit('joinAck', player);
+
+        // Test create actor
+        // if (!testFireballTimer) {
+        //     testFireballTimer = setInterval(() => {
+        //         actorManager.createActor('fireball', { x: 0, y: 80, z: 0 });
+        //     }, 1000);
+        // }
+        // Test create item
+        actorManager.createActor('item', { x: 0, y: 20, z: 0 });
+        actorManager.createActor('item', { x: 0, y: 13, z: 0 });
+        actorManager.createActor('item', { x: 0, y: 13, z: 2 });
+        actorManager.createActor('item', { x: 2, y: 13, z: 0 });
+        actorManager.createActor('item', { x: 0, y: 13, z: 4 });
+        actorManager.createActor('item', { x: 4, y: 13, z: 0 });
 
         //Tell players we joined
-        socket.broadcast.emit('newPlayer', { netId: socket.id, data });
+        socket.broadcast.emit('newPlayer', player);
 
-        //Tell us who is here
-        const playerList = Object.keys(players).map(id => ({
-            netId: id,
-            data: {
-                scene: players[id].scene,
-                pos: players[id].pos,
-                state: players[id].state,
-                health: players[id].health,
-                name: players[id].name,
-                money: players[id].money,
-                hasCrown: players[id].hasCrown || false,
-            }
-        }));
-        socket.emit('currentPlayers', playerList);
+        socket.emit('currentPlayers', players);
+        socket.emit('currentActors', actorManager.actors);
+
         io.emit('serverMessage', { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'yellow' });
         if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
 
-        gameMode.addPlayer(players[socket.id]);
 
-        socket.on('playerDied', ({ playerId, source }) => {
-            if (players[playerId]) {
-                io.emit('serverMessage', { player: 'Server', message: `${players[playerId].name} slain by: ${players[source]?.name || source}`, color: 'orange' });
+        socket.on('playerDied', ({ id, source }) => {
+            const player = players[id];
+            const sourceName = actorManager.getActorById(source)?.name || source;
+            if (player) {
+                io.emit('serverMessage', { player: 'Server', message: `${player.name} slain by: ${sourceName}`, color: 'orange' });
             }
         });
         socket.on('playerNameSend', (name) => {
@@ -122,14 +113,10 @@ io.on('connection', (socket) => {
             if (players[socket.id]) players[socket.id].pos = data.pos;
             socket.broadcast.emit('playerPositionUpdate', { id: socket.id, data });
         });
-        socket.on('playerStateSend', (data) => {
-            if (players[socket.id]) players[socket.id].state = data.state;
-            socket.broadcast.emit('playerStateUpdate', { id: socket.id, data });
-        });
         socket.on('playAnimation', (data) => {
             if (players[socket.id]) players[socket.id].anim = data;
             socket.broadcast.emit('playAnimation', { id: socket.id, data })
-        })
+        });
         socket.on('chatMessageSend', ({ player, message, color }) => {
             socket.broadcast.emit('chatMessageUpdate', { id: socket.id, data: { player, message, color } });
         });
@@ -155,26 +142,19 @@ io.on('connection', (socket) => {
                 }
             });
         });
-        socket.on('takeHealing', (data) => {
-            const player = players[socket.id];
-            if (!player) return;
-            const { dealer, heal } = data
-            player.health = Math.min(100, player.health + heal.amount);
-            socket.broadcast.emit('healingUpdate', { id: socket.id, health: player.health, data });
-        })
         socket.on('playerParryUpdate', (doesParry) => {
             if (players[socket.id]) {
                 players[socket.id].parry = doesParry;
                 socket.broadcast.emit('playerParryUpdate', { id: socket.id, parry: doesParry });
             }
         });
-        socket.on('playerRespawnUpdate', (data) => {
-            if (players[socket.id]) {
-                players[socket.id].pos = data.pos;
-                players[socket.id].health = data.health || 100;
-                players[socket.id].blocking = false;
+        socket.on('playerRespawn', () => {
+            const player = players[socket.id];
+            if (player) {
+                player.health = player.maxHealth || 100;
+                player.blocking = false;
             }
-            socket.broadcast.emit('playerRespawnUpdate', { id: socket.id, data });
+            socket.broadcast.emit('playerRespawn', { id: socket.id, health: player.health });
         });
         socket.on('playerBlockUpdate', (blocking) => {
             if (players[socket.id]) {
@@ -200,7 +180,7 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('pickupCrown', { playerId: socket.id });
             io.emit('pickupCollected', { playerId: socket.id, netId: '9999991' });
             gameMode.pickupCrown(players[socket.id]);
-        })
+        });
         socket.on('dropCrown', (position) => {
             players[socket.id].hasCrown = false;
             socket.broadcast.emit('dropCrown', { playerId: socket.id });
@@ -210,12 +190,7 @@ io.on('connection', (socket) => {
             if (!players[targetId]) return;
             players[targetId].socket.disconnect(true);
         });
-        socket.on('projectileCreated', (data) => {
-            const player = players[socket.id];
-            if (!player) return;
-            socket.broadcast.emit('projectileCreated', { id: socket.id, data });
-        });
-        socket.on('projectileMoved', data => {
+        socket.on('projectileMoved', (data) => {
             const player = players[socket.id];
             if (!player) return;
             socket.broadcast.emit('projectileMoved', { id: socket.id, data })
@@ -224,10 +199,32 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('projectileDestroyed', data);
         });
         socket.on('playerDropItem', (data) => {
-            pickups.spawnPickup('item', data.pos, false, null, data.item)
+            pickups.spawnPickup('item', data.pos, null, data.item)
         });
         socket.on('spawnLocations', (data) => {
             pickups.updateSpawnLocations(data);
+        });
+        socket.on('actorHit', (data) => {
+            const actor = actorManager.getActorById(data.target);
+            if (actor) {
+                actor.health = Math.max(0, Math.min(actor.maxHealth, actor.health + data.amount));
+                io.emit('actorHit', { data, health: actor.health });
+            }
+        });
+        socket.on('newActor', (data) => {
+            const actor = actorManager.addActor(data);
+            io.emit('newActor', actor);
+        });
+        socket.on('destroyActor', (id) => {
+            socket.broadcast.emit('destroyActor', id);
+        });
+        socket.on('actorTouch', (data) => {
+            const { dealer, target, active } = data;
+            const actor = actorManager.getActorById(target);
+            if (actor && actor.active) {
+                actor.active = active;
+                io.emit('actorTouch', data);
+            }
         })
 
         // player joined
