@@ -1,15 +1,19 @@
+import ActorManager from "./ActorManager.js";
+
 export default class GameMode {
-    constructor(name, io, pickupManager) {
+    constructor(name, io) {
         this.name = name;
         this.io = io;
+        this.actorManager = new ActorManager(io);
         this.players = [];
         this.winningScore = 100; // Example winning score
-        this.pickupManager = pickupManager;
         this.gameInit = false;
         this.gameActive = false;
         this.crownPointsInterval = null;
 
         this.crownId = '9999991'
+
+        //this.initGame();
     }
 
     startGame() {
@@ -22,12 +26,11 @@ export default class GameMode {
 
     pickupCrown(player) {
         if (player) {
-            this.pickupManager.removePickup(this.crownId, this.crown);
             if (!this.gameActive) this.startGame();
             clearInterval(this.crownPointsInterval);
             this.crownPointsInterval = setInterval(() => {
                 player.score += 1;
-                this.io.emit('crownScoreIncrease', { playerId: player.socket.id, score: player.score });
+                this.io.emit('crownScoreIncrease', { playerId: player.netId, score: player.score });
                 if (player.score >= this.winningScore) {
                     clearInterval(this.crownPointsInterval);
                     this.endGame(player.socket.id);
@@ -45,7 +48,7 @@ export default class GameMode {
 
     dropCrown(pos = { x: 0, y: 1, z: 0 }) {
         clearInterval(this.crownPointsInterval);
-        this.crown = this.pickupManager.spawnPickup('crown', pos, false, this.crownId);
+        this.crown = this.actorManager.createActor('crown', pos);
         this.crown.active = true;
     }
 
@@ -75,7 +78,6 @@ export default class GameMode {
         }
         if (this.gameActive) {
             player.socket.emit('crownGameStarted', this.getScores());
-
         }
     }
 
