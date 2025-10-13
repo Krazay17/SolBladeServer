@@ -10,8 +10,15 @@ export default class ActorManager {
 
         this.hasSpawnedDefaults = false;
         this.spawnDefaultActors();
-        
+
         ActorManager.instance = this;
+    }
+    actorDie(id) {
+        const actor = this.getActorById(id);
+        if (actor) {
+            actor.active = false;
+            return actor;
+        }
     }
     addActor(data) {
         const id = data.netId ? data.netId : randomUUID();

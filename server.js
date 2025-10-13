@@ -73,9 +73,9 @@ io.on('connection', (socket) => {
         const bindGameplay = () => {
             //Tell players we joined
             socket.broadcast.emit('newPlayer', player);
+            socket.emit('currentPlayers', actorManager.playerActors);
 
-            socket.emit('currentPlayers', players);
-            socket.emit('currentActors', actorManager.actors);
+            socket.emit('currentActors', actorManager.nonPlayerActors);
 
             io.emit('serverMessage', { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'yellow' });
             if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
@@ -143,7 +143,6 @@ io.on('connection', (socket) => {
             socket.on('actorHit', (data) => {
                 const actor = actorManager.getActorById(data.target);
                 if (actor) {
-                    console.log(data);
                     if (actor.type === 'player' && !playerHit(actor, data)) return;
                     actor.health = Math.max(0, Math.min(actor.maxHealth, actor.health + data.amount));
                     io.emit('actorHit', { data, health: actor.health });
@@ -157,6 +156,10 @@ io.on('connection', (socket) => {
                 actorManager.destroyActor(id);
                 socket.broadcast.emit('destroyActor', id);
             });
+            socket.on('actorDie', (data) => {
+                actorManager.actorDie(data.target);
+                socket.broadcast.emit('actorDie', data);
+            })
             socket.on('actorTouch', (data) => {
                 const { dealer, target, active } = data;
                 const actor = actorManager.getActorById(target);
