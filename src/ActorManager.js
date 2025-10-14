@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import actorDefaults from "./ActorDefaults.js";
+import actorDefaults, { randomPos } from "./ActorDefaults.js";
 
 export default class ActorManager {
     static instance = null;
@@ -13,11 +13,24 @@ export default class ActorManager {
 
         ActorManager.instance = this;
     }
-    actorDie(id) {
-        const actor = this.getActorById(id);
+    actorDie(data) {
+        const { dealer, target } = data;
+        const actor = this.getActorById(target);
         if (actor) {
+            const { type, pos, respawn, respawning, maxHealth, active, rndPos } = actor;
+            if (!active) return;
             actor.active = false;
-            return actor;
+            if (respawn && !respawning) {
+                actor.respawning = true;
+                actor.health = maxHealth;
+                setTimeout(() => {
+                    this.createActor(type, {
+                        ...actor,
+                        respawning: false,
+                    });
+                }, respawn);
+            }
+            this.io.emit('actorDie', data);
         }
     }
     addActor(data) {
@@ -29,19 +42,21 @@ export default class ActorManager {
         this._actors.push(actor);
         return actor;
     }
-    createActor(type, pos = { x: 0, y: 0, z: 0 }, data, rot = { x: 0, y: 0, z: 0, w: 1 }) {
+    createActor(type, data) {
+        const existingActor = this._actors.find(a => a.type === type && !a.active);
         const defaults = actorDefaults[type];
-        if (defaults) data = { ...defaults };
+        if (defaults) data = { ...defaults, ...data };
+        if (data?.rndPos) data.pos = randomPos(data.rndXZ || 5, data.rndY || 5);
         const id = randomUUID();
         const actor = {
             maxHealth: 1,
             health: 1,
+            pos: { x: 0, y: 0, z: 0 },
+            rot: { x: 0, y: 0, z: 0, w: 1 },
             ...data,
             netId: id,
             active: true,
             type,
-            pos,
-            rot,
         }
         this._actors.push(actor);
         this.io.emit('newActor', actor);
@@ -50,14 +65,9 @@ export default class ActorManager {
     destroyActor(id) {
         const actor = this.getActorById(id);
         if (!actor) return;
-        const { type, pos, respawn, respawning, maxHealth } = actor;
-        if (respawn && !respawning) {
-            actor.respawning = true;
-            actor.health = maxHealth;
-            setTimeout(() => {
-                this.createActor(type, pos, { ...actor, respawning: false });
-            }, respawn);
-        }
+        actor.active = false;
+        const index = this._actors.indexOf(actor)
+        this._actors.splice(index, 1);
     }
     getActorById(id) {
         return this._actors.find(a => a.netId === id);
@@ -66,7 +76,7 @@ export default class ActorManager {
         return this._actors;
     }
     get nonPlayerActors() {
-        return this._actors.filter(a => a.type !== 'player');
+        return this._actors.filter(a => a.type !== 'player' && a.active);
     }
     get playerActors() {
         return this._actors.filter(a => a.type === 'player');
@@ -74,22 +84,14 @@ export default class ActorManager {
     spawnDefaultActors() {
         if (this.hasSpawnedDefaults) return;
         this.hasSpawnedDefaults = true;
-        this.createActor('item', { x: 0, y: 20, z: 8 }, { respawn: 15000 });
-        this.createActor('item', { x: 8, y: 13, z: 8 }, { respawn: 15000 });
-        this.createActor('item', { x: 0, y: 13, z: 2 }, { respawn: 15000 });
-        this.createActor('item', { x: 2, y: 13, z: 0 }, { respawn: 15000 });
-        this.createActor('item', { x: 8, y: 13, z: 2 }, { respawn: 15000 });
-        this.createActor('item', { x: 4, y: 13, z: 0 }, { respawn: 15000 });
-        this.createActor('power', { x: 0, y: 2, z: 4 }, { power: 'health', respawn: 10000 });
-        this.createActor('power', { x: 4, y: 2, z: 4 }, { power: 'health', respawn: 10000 });
-        this.createActor('power', { x: 4, y: 2, z: 0 }, { power: 'energy', respawn: 10000 });
-        this.createActor('power', { x: 6, y: 3, z: 6 }, { power: 'health', respawn: 10000 });
-        this.createActor('power', { x: 4, y: 3, z: 8 }, { power: 'energy', respawn: 10000 });
-        this.createActor('power', { x: 8, y: 4, z: 4 }, { power: 'health', respawn: 10000 });
-        this.createActor('power', { x: 4, y: 4, z: 6 }, { power: 'energy', respawn: 10000 });
-        this.createActor('power', { x: 4, y: 5, z: 8 }, { power: 'health', respawn: 10000 });
-        this.createActor('power', { x: 4, y: 5, z: 6 }, { power: 'energy', respawn: 10000 });
-        this.createActor('power', { x: 8, y: 6, z: 6 }, { power: 'health', respawn: 10000 });
-        this.createActor('power', { x: 6, y: 6, z: 0 }, { power: 'energy', respawn: 10000 });
+        const item = 6;
+        const power = 12;
+        for (let i = 0; i < item; i++) {
+            this.createActor('item');
+        }
+        for (let i = 0; i < power; i++) {
+            const type = i % 2 ? 'health' : 'energy';
+            this.createActor('power', { power: type })
+        }
     }
 }

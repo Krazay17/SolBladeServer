@@ -7,6 +7,26 @@ const actorDefaults = {
         maxHealth: 1000,
         health: 1000,
     },
+    item: {
+        respawn: 15000,
+        rndPos: true,
+        rndXZ: 20,
+        rndY: 15,
+    },
+    power: {
+        respawn: 15000,
+        rndPos: true,
+        rndXZ: 20,
+        rndY: 15,
+    }
 }
 
 export default actorDefaults;
+
+export function randomPos(maxHoriz, maxHeight) {
+    const x = (Math.random() * 2 - 1) * maxHoriz;
+    const z = (Math.random() * 2 - 1) * maxHoriz;
+    const y = Math.random() * maxHeight;
+
+    return { x, y, z };
+}

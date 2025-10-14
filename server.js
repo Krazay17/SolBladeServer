@@ -58,6 +58,7 @@ io.on('connection', (socket) => {
         if (!isLocal && players[socket.id]) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
 
+        actorManager.destroyActor(socket.id);
         delete players[socket.id];
     });
     // socket.on('heartbeat', () => {
@@ -81,11 +82,12 @@ io.on('connection', (socket) => {
             if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
 
 
-            socket.on('playerDied', ({ id, source }) => {
-                const player = players[id];
-                const sourceName = actorManager.getActorById(source)?.name || source;
+            socket.on('playerDied', (data) => {
+                const { dealer, target } = data;
+                const targetName = actorManager.getActorById(target)?.name || 'The Void';
+                const dealerName = actorManager.getActorById(dealer)?.name || 'The Void';
                 if (player) {
-                    io.emit('serverMessage', { player: 'Server', message: `${player.name} slain by: ${sourceName}`, color: 'orange' });
+                    io.emit('serverMessage', { player: 'Server', message: `${targetName} slain by: ${dealerName}`, color: 'orange' });
                 }
             });
             socket.on('playerNameSend', (name) => {
@@ -146,7 +148,20 @@ io.on('connection', (socket) => {
                     if (actor.type === 'player' && !playerHit(actor, data)) return;
                     actor.health = Math.max(0, Math.min(actor.maxHealth, actor.health + data.amount));
                     io.emit('actorHit', { data, health: actor.health });
+                    if (actor.health <= 0) {
+                        actorManager.actorDie(data);
+                    }
                 }
+            });
+            socket.on('actorTouch', (data) => {
+                const actor = actorManager.getActorById(data.target);
+                if (actor && actor.active) {
+                    socket.emit('actorTouch', data);
+                }
+                actorManager.actorDie(data);
+            });
+            socket.on('actorDie', (data) => {
+                actorManager.actorDie(data);
             });
             socket.on('newActor', (data) => {
                 const actor = actorManager.addActor(data);
@@ -155,18 +170,6 @@ io.on('connection', (socket) => {
             socket.on('destroyActor', (id) => {
                 actorManager.destroyActor(id);
                 socket.broadcast.emit('destroyActor', id);
-            });
-            socket.on('actorDie', (data) => {
-                actorManager.actorDie(data.target);
-                socket.broadcast.emit('actorDie', data);
-            })
-            socket.on('actorTouch', (data) => {
-                const { dealer, target, active } = data;
-                const actor = actorManager.getActorById(target);
-                if (actor && actor.active) {
-                    actor.active = active;
-                    io.emit('actorTouch', data);
-                }
             });
         }
 
