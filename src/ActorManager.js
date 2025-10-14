@@ -14,23 +14,28 @@ export default class ActorManager {
         ActorManager.instance = this;
     }
     actorDie(data) {
+        if(!data) return;
         const { dealer, target } = data;
-        const actor = this.getActorById(target);
-        if (actor) {
-            const { type, pos, respawn, respawning, maxHealth, active, rndPos } = actor;
+        //const dealerActor = this.getActorById(dealer);
+        const targetActor = this.getActorById(target);
+        if (targetActor) {
+            const { type, name, pos, respawn, respawning, maxHealth, active, rndPos } = targetActor;
             if (!active) return;
-            actor.active = false;
+            targetActor.active = false;
             if (respawn && !respawning) {
-                actor.respawning = true;
-                actor.health = maxHealth;
+                targetActor.respawning = true;
+                targetActor.health = maxHealth;
                 setTimeout(() => {
                     this.createActor(type, {
-                        ...actor,
+                        ...targetActor,
                         respawning: false,
                     });
                 }, respawn);
             }
             this.io.emit('actorDie', data);
+            // if (type === 'player') {
+            //     this.io.emit('serverMessage', { player: 'Server', message: `${name ?? 'The Void'} slain by: ${dealerActor.name ?? 'The Void'}`, color: 'orange' });
+            // }
         }
     }
     addActor(data) {
@@ -49,6 +54,7 @@ export default class ActorManager {
         if (data?.rndPos) data.pos = randomPos(data.rndXZ || 5, data.rndY || 5);
         const id = randomUUID();
         const actor = {
+            type,
             maxHealth: 1,
             health: 1,
             pos: { x: 0, y: 0, z: 0 },
@@ -56,7 +62,6 @@ export default class ActorManager {
             ...data,
             netId: id,
             active: true,
-            type,
         }
         this._actors.push(actor);
         this.io.emit('newActor', actor);

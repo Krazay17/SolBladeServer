@@ -1,8 +1,8 @@
 import { Server } from "socket.io";
 import { sendDiscordMessage } from "./DiscordStuff.js";
 import http from "http";
-import GameMode from "./src/GameMode.js";
 import ActorManager from "./src/ActorManager.js";
+import CrownQuest from "./src/CrownQuest.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer();
@@ -23,7 +23,8 @@ const io = new Server(server, {
 });
 
 const actorManager = new ActorManager(io);
-const gameMode = new GameMode("crown", io);
+const crownQuest = new CrownQuest(io, actorManager);
+const quests = [crownQuest];
 let players = {};
 
 io.on('connection', (socket) => {
@@ -32,14 +33,12 @@ io.on('connection', (socket) => {
     const ip = socket.handshake.address;
     console.log(`New connection from ${ip} with id: ${socket.id}`);
 
-    // socket.on("join-voice", () => {
-    //     // tell everyone else to start connecting to this peer
-    //     socket.broadcast.emit("new-peer", socket.id);
-    // });
-
+    socket.on("join-voice", () => {
+        // tell everyone else to start connecting to this peer
+        socket.broadcast.emit("new-peer", socket.id);
+    });
     // Tell others a new client joined
     socket.broadcast.emit("new-peer", socket.id);
-
     // Relay messages to a specific peer
     socket.on("offer", ({ targetId, offer }) => {
         io.to(targetId).emit("offer", { from: socket.id, offer });
@@ -53,7 +52,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         socket.broadcast.emit('playerDisconnected', socket.id);
-        socket.broadcast.emit("peer-disconnect", socket.id);
+        quests.forEach(q => q.leave(socket.id));
         io.emit('serverMessage', { player: 'Server', message: `Player Disconnected: ${players[socket.id]?.name || 'null'}!`, color: 'red' });
         if (!isLocal && players[socket.id]) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
@@ -61,18 +60,13 @@ io.on('connection', (socket) => {
         actorManager.destroyActor(socket.id);
         delete players[socket.id];
     });
-    // socket.on('heartbeat', () => {
-    //     players[socket.id].lastPing = Date.now();
-    //     socket.emit('heartbeatAck');
-    // })
 
     socket.on('joinGame', (data) => {
-        const player = actorManager.addActor({ ...data, netId: socket.id })
+        const player = actorManager.addActor({ ...data, netId: socket.id });
         players[socket.id] = player;
         socket.emit('joinAck', player);
 
         const bindGameplay = () => {
-            //Tell players we joined
             socket.broadcast.emit('newPlayer', player);
             socket.emit('currentPlayers', actorManager.playerActors);
 
@@ -81,13 +75,13 @@ io.on('connection', (socket) => {
             io.emit('serverMessage', { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'yellow' });
             if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
 
-
-            socket.on('playerDied', (data) => {
+            socket.on('iDied', (data) => {
                 const { dealer, target } = data;
                 const targetName = actorManager.getActorById(target)?.name || 'The Void';
                 const dealerName = actorManager.getActorById(dealer)?.name || 'The Void';
                 if (player) {
                     io.emit('serverMessage', { player: 'Server', message: `${targetName} slain by: ${dealerName}`, color: 'orange' });
+                    io.emit('playerDied', data);
                 }
             });
             socket.on('playerNameSend', (name) => {
@@ -122,34 +116,22 @@ io.on('connection', (socket) => {
                 if (player) {
                     player.health = player.maxHealth || 100;
                     player.parry = false;
+                    player.lastHit = null;
                 }
                 socket.broadcast.emit('playerRespawn', { id: socket.id, health: player.health });
             });
             socket.on('fx', (data) => {
                 socket.broadcast.emit('fx', data);
             });
-            socket.on('pickupCrown', () => {
-                players[socket.id].hasCrown = true;
-                socket.broadcast.emit('pickupCrown', socket.id);
-                gameMode.pickupCrown(players[socket.id]);
-            });
-            socket.on('dropCrown', (position) => {
-                players[socket.id].hasCrown = false;
-                socket.broadcast.emit('dropCrown', { playerId: socket.id });
-                gameMode.dropCrown(position);
-            });
-            socket.on('bootPlayer', (targetId) => {
-                // if (!players[targetId]) return;
-                // players[targetId].socket.disconnect(true);
-            });
             socket.on('actorHit', (data) => {
                 const actor = actorManager.getActorById(data.target);
                 if (actor) {
                     if (actor.type === 'player' && !playerHit(actor, data)) return;
                     actor.health = Math.max(0, Math.min(actor.maxHealth, actor.health + data.amount));
+                    actor.lastHit = data;
                     io.emit('actorHit', { data, health: actor.health });
                     if (actor.health <= 0) {
-                        actorManager.actorDie(data);
+                        actorManager.actorDie(actor.lastHit);
                     }
                 }
             });
@@ -167,10 +149,31 @@ io.on('connection', (socket) => {
                 const actor = actorManager.addActor(data);
                 io.emit('newActor', actor);
             });
+            socket.on('actorStateUpdate', data => {
+                const actor = actorManager.getActorById(data.netId);
+                if (actor) {
+                    Object.assign(actor, data);
+                }
+            });
             socket.on('destroyActor', (id) => {
                 actorManager.destroyActor(id);
                 socket.broadcast.emit('destroyActor', id);
             });
+            socket.on('playerAudio', data => {
+                socket.broadcast.emit('playerAudio', { id: socket.id, data });
+            });
+            socket.on('crownGameEnter', () => {
+                crownQuest.join(socket.id, socket);
+            });
+            socket.on('crownGameLeave', () => {
+                crownQuest.leave(socket.id);
+            });
+            socket.on('crownPickup', id=>{
+                crownQuest.pickupCrown(id);
+            })
+            socket.on('dropCrown', pos => {
+                crownQuest.dropCrown(socket.id, pos);
+            })
         }
 
         socket.on('bindGameplay', bindGameplay);

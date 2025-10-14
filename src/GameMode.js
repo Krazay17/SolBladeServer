@@ -41,7 +41,7 @@ export default class GameMode {
 
     getScores() {
         return this.players.map(player => ({
-            id: player.socket.id,
+            id: player.netId,
             score: player.score
         }));
     }
