@@ -84,10 +84,10 @@ io.on('connection', (socket) => {
                     io.emit('playerDied', data);
                 }
             });
-            socket.on('playerNameSend', (name) => {
-                if (players[socket.id]) players[socket.id].name = name;
-                socket.broadcast.emit('playerNameUpdate', { id: socket.id, name });
-            });
+            socket.on('playerNameChange', name => {
+                players[socket.id].name = name;
+                io.emit('playerNameChange', { id: socket.id, name });
+            })
             socket.on('playerPositionSend', (data) => {
                 if (players[socket.id]) players[socket.id].pos = data.pos;
                 socket.broadcast.emit('playerPositionUpdate', { id: socket.id, data });
@@ -168,7 +168,7 @@ io.on('connection', (socket) => {
             socket.on('crownGameLeave', () => {
                 crownQuest.leave(socket.id);
             });
-            socket.on('crownPickup', id=>{
+            socket.on('crownPickup', id => {
                 crownQuest.pickupCrown(id);
             })
             socket.on('dropCrown', pos => {
