@@ -67,10 +67,15 @@ io.on('connection', (socket) => {
         socket.emit('joinAck', player);
 
         const bindGameplay = () => {
-            socket.broadcast.emit('newPlayer', player);
-            socket.emit('currentPlayers', actorManager.playerActors);
-
-            socket.emit('currentActors', actorManager.nonPlayerActors);
+            //socket.broadcast.emit('newPlayer', player);
+            //socket.broadcast.emit('newActor', player);
+            // socket.emit('currentPlayers', actorManager.playerActors);
+            // socket.emit('currentActors', actorManager.nonPlayerActors);
+            socket.on('newWorld', (solWorld) => {
+                player.solWorld = solWorld;
+                socket.broadcast.emit('newWorld', player);
+                socket.emit('currentActors', actorManager.getActorsOfWorld(solWorld));
+            })
 
             io.emit('serverMessage', { player: 'Server', message: `Player Connected: ${data.name}!`, color: 'yellow' });
             if (!isLocal) sendDiscordMessage(`Player Connected: ${data.name}!`);
@@ -163,21 +168,28 @@ io.on('connection', (socket) => {
                 socket.broadcast.emit('playerAudio', { id: socket.id, data });
             });
             socket.on('crownGameEnter', () => {
-                crownQuest.join(socket.id, socket);
+                crownQuest.join(socket.id);
             });
             socket.on('crownGameLeave', () => {
                 crownQuest.leave(socket.id);
             });
-            socket.on('crownPickup', id => {
-                crownQuest.pickupCrown(id);
+            socket.on('crownPickup', () => {
+                crownQuest.pickupCrown(socket.id);
             })
             socket.on('dropCrown', pos => {
                 crownQuest.dropCrown(socket.id, pos);
             })
+            socket.on('leaveWorld', (world) => {
+                socket.broadcast.emit('leaveWorld', { id: socket.id, world });
+            });
+            socket.on('enterWorld', world => {
+                socket.broadcast.emit('enterWorld', { player, world });
+            })
         }
+        bindGameplay()
+        // socket.broadcast.emit('newWorld', player);
+        // socket.emit('currentActors', actorManager.getActorsOfWorld(player.solWorld));
 
-        socket.on('bindGameplay', bindGameplay);
-        // player joined
     });
     // player connected
 });
@@ -192,6 +204,14 @@ function playerHit(targetActor, data) {
     }
     return true;
 }
+
+function serverTick() {
+    //console.log(crownQuest.players);
+}
+
+setInterval(() => {
+    serverTick();
+}, 1000);
 
 // setInterval(() => {
 //     Object.keys(players).forEach(key => {

@@ -18,9 +18,7 @@ export default class CrownQuest {
         this.io.emit('crownGamePlayers', this.players);
     }
     leave(id) {
-        if (id && this.players[id]?.hasCrown) {
-            this.dropCrown(id, this.defaultPos)
-        }
+        this.dropCrown(id, this.defaultPos)
         delete this.players[id];
     }
     init() {
@@ -32,6 +30,7 @@ export default class CrownQuest {
         for (const [id, p] of Object.entries(this.players)) {
             p.score = 0;
         }
+        this.io.emit('crownGamePlayers', this.players);
     }
     endGame(id) {
         this.started = false;
@@ -40,10 +39,10 @@ export default class CrownQuest {
     }
     pickupCrown(id) {
         const player = this.players[id];
-        if(!player)return;
+        if (!player) return;
         this.start();
         player.hasCrown = true;
-        this.io.emit('crownPickup', id)
+        this.io.emit('crownPickup', id);
         clearInterval(this.crownPointsInterval);
         this.crownPointsInterval = setInterval(() => {
             player.score += 1;

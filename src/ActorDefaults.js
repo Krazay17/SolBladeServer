@@ -12,12 +12,17 @@ const actorDefaults = {
         rndPos: true,
         rndXZ: 20,
         rndY: 15,
+        solWorld: 'world2'
     },
     power: {
         respawn: 15000,
         rndPos: true,
         rndXZ: 20,
         rndY: 15,
+        solWorld: 'world2',
+    },
+    crown: {
+        solWorld: 'world2',
     }
 }
 

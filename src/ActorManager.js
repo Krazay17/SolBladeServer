@@ -14,14 +14,16 @@ export default class ActorManager {
         ActorManager.instance = this;
     }
     actorDie(data) {
-        if(!data) return;
+        if (!data) return;
         const { dealer, target } = data;
         //const dealerActor = this.getActorById(dealer);
         const targetActor = this.getActorById(target);
         if (targetActor) {
             const { type, name, pos, respawn, respawning, maxHealth, active, rndPos } = targetActor;
             if (!active) return;
-            targetActor.active = false;
+            if (type !== 'player') {
+                targetActor.active = false;
+            }
             if (respawn && !respawning) {
                 targetActor.respawning = true;
                 targetActor.health = maxHealth;
@@ -33,9 +35,6 @@ export default class ActorManager {
                 }, respawn);
             }
             this.io.emit('actorDie', data);
-            // if (type === 'player') {
-            //     this.io.emit('serverMessage', { player: 'Server', message: `${name ?? 'The Void'} slain by: ${dealerActor.name ?? 'The Void'}`, color: 'orange' });
-            // }
         }
     }
     addActor(data) {
@@ -77,15 +76,6 @@ export default class ActorManager {
     getActorById(id) {
         return this._actors.find(a => a.netId === id);
     }
-    get actors() {
-        return this._actors;
-    }
-    get nonPlayerActors() {
-        return this._actors.filter(a => a.type !== 'player' && a.active);
-    }
-    get playerActors() {
-        return this._actors.filter(a => a.type === 'player');
-    }
     spawnDefaultActors() {
         if (this.hasSpawnedDefaults) return;
         this.hasSpawnedDefaults = true;
@@ -98,5 +88,23 @@ export default class ActorManager {
             const type = i % 2 ? 'health' : 'energy';
             this.createActor('power', { power: type })
         }
+    }
+    getPlayerActorsOfWorld(world) {
+        return this.playerActors.filter(a => a.solWorld === world)
+    }
+    getNonPlayerActorsOfWorld(world) {
+        return this.nonPlayerActors.filter(a => a.solWorld === world)
+    }
+    getActorsOfWorld(world) {
+        return this._actors.filter(a => (a.solWorld === world) && a.active);
+    }
+    get actors() {
+        return this._actors;
+    }
+    get nonPlayerActors() {
+        return this._actors.filter(a => a.type !== 'player' && a.active);
+    }
+    get playerActors() {
+        return this._actors.filter(a => a.type === 'player');
     }
 }
