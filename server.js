@@ -152,7 +152,7 @@ io.on('connection', (socket) => {
             });
             socket.on('newActor', (data) => {
                 const actor = actorManager.addActor(data);
-                io.emit('newActor', actor);
+                socket.broadcast.emit('newActor', actor);
             });
             socket.on('actorStateUpdate', data => {
                 const actor = actorManager.getActorById(data.netId);
