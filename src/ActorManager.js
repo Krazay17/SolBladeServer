@@ -58,6 +58,7 @@ export default class ActorManager {
         const actor = {
             ...data,
             netId: id,
+            time: performance.now(),
         }
         this._actors.push(actor);
         return actor;
@@ -75,17 +76,20 @@ export default class ActorManager {
             pos: { x: 0, y: 0, z: 0 },
             rot: { x: 0, y: 0, z: 0, w: 1 },
             ...data,
+            time: performance.now(),
             netId: id,
             active: true,
         }
+        console.log(actor);
         this._actors.push(actor);
         this.io.emit('newActor', actor);
         return actor;
     }
-    destroyActor(id) {
-        const actor = this.getActorById(id);
+    destroyActor(actor) {
+        actor = typeof actor === 'string' ? this.getActorById(actor) : actor;
         if (!actor) return;
         actor.active = false;
+        this.io.emit('actorDestroy', actor);
         const index = this._actors.indexOf(actor)
         this._actors.splice(index, 1);
     }
@@ -105,8 +109,20 @@ export default class ActorManager {
             this.createActor('power', { power: type })
         }
     }
+    remainingDuration(actor) {
+        const time = actor.time;
+        const dur = actor.dur;
+        if (!dur) return true;
+        const active = performance.now() - time < dur;
+        if (active) {
+            return true;
+        } else {
+            this.destroyActor(actor)
+        }
+        return active;
+    }
     getActorsOfWorld(world) {
-        return this._actors.filter(a => (a.solWorld === world) && a.active);
+        return this._actors.filter(a => a.active && (a.solWorld === world) && this.remainingDuration(a));
     }
     get actors() {
         return this._actors;
