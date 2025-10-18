@@ -113,7 +113,7 @@ io.on('connection', (socket) => {
             socket.on('parryUpdate', (doesParry) => {
                 if (players[socket.id]) {
                     players[socket.id].parry = doesParry;
-                    socket.broadcast.emit('parryUpdate',);
+                    socket.broadcast.emit('parryUpdate', doesParry);
                 }
             });
             socket.on('playerRespawn', () => {
@@ -143,16 +143,23 @@ io.on('connection', (socket) => {
             socket.on('actorTouch', (data) => {
                 const actor = actorManager.getActorById(data.target);
                 if (actor && actor.active) {
-                    socket.emit('actorTouch', data);
+                    io.emit('actorTouch', data);
+                    if (data.die) actorManager.actorDie(data);
                 }
-                actorManager.actorDie(data);
             });
             socket.on('actorDie', (data) => {
                 actorManager.actorDie(data);
             });
+            socket.on('actorDestroy', (data) => {
+                const actor = actorManager.getActorById(data.netId);
+                if (actor) {
+                    actor.active = false;
+                    io.emit('actorDestroy', actor);
+                }
+            });
             socket.on('newActor', (data) => {
                 const actor = actorManager.addActor(data);
-                socket.broadcast.emit('newActor', actor);
+                io.emit('newActor', actor);
             });
             socket.on('actorStateUpdate', data => {
                 const actor = actorManager.getActorById(data.netId);
@@ -160,13 +167,12 @@ io.on('connection', (socket) => {
                     Object.assign(actor, data);
                 }
             });
-            socket.on('destroyActor', (id) => {
-                actorManager.destroyActor(id);
-                socket.broadcast.emit('destroyActor', id);
-            });
             socket.on('playerAudio', data => {
                 socket.broadcast.emit('playerAudio', { id: socket.id, data });
             });
+            socket.on('playPosSound', data => {
+                socket.broadcast.emit('playPosSound', { map: player.solWorld, data });
+            })
             socket.on('crownGameEnter', () => {
                 crownQuest.join(socket.id);
             });
@@ -187,8 +193,6 @@ io.on('connection', (socket) => {
             })
         }
         bindGameplay()
-        // socket.broadcast.emit('newWorld', player);
-        // socket.emit('currentActors', actorManager.getActorsOfWorld(player.solWorld));
 
     });
     // player connected
@@ -204,26 +208,6 @@ function playerHit(targetActor, data) {
     }
     return true;
 }
-
-function serverTick() {
-    //console.log(crownQuest.players);
-}
-
-setInterval(() => {
-    serverTick();
-}, 1000);
-
-// setInterval(() => {
-//     Object.keys(players).forEach(key => {
-//         const player = players[key];
-//         if (!player) return;
-
-//         if (Date.now() - player.lastPing > 15000) {
-//             console.log(`Disconnecting inactive player: ${key}`);
-//             player.socket.disconnect(true);
-//         }
-//     });
-// }, 5000);
 
 server.listen(PORT);
 console.log(`Server is running on port ${PORT}`);
