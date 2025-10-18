@@ -74,6 +74,7 @@ io.on('connection', (socket) => {
             socket.on('newWorld', (solWorld) => {
                 player.solWorld = solWorld;
                 socket.broadcast.emit('newWorld', player);
+                const currentActors = actorManager.getActorsOfWorld(solWorld)
                 socket.emit('currentActors', actorManager.getActorsOfWorld(solWorld));
             })
 
@@ -143,18 +144,28 @@ io.on('connection', (socket) => {
             socket.on('actorTouch', (data) => {
                 const actor = actorManager.getActorById(data.target);
                 if (actor && actor.active) {
+                    actor.active = false;
                     io.emit('actorTouch', data);
-                    if (data.die) actorManager.actorDie(data);
+                    if (actor.respawn) actorManager.respawn(actor);
                 }
             });
             socket.on('actorDie', (data) => {
-                actorManager.actorDie(data);
+                const actor = actorManager.getActorById(data.target);
+                if (actor && actor.active) {
+                    if (actor.type !== 'player') {
+                        actor.active = false;
+                    }
+                    io.emit('actorDie', data);
+                    if (actor.respawn) actorManager.respawn(actor);
+                }
             });
             socket.on('actorDestroy', (data) => {
                 const actor = actorManager.getActorById(data.netId);
                 if (actor) {
-                    actor.active = false;
-                    io.emit('actorDestroy', actor);
+                    if (actor.type !== 'player') {
+                        actor.active = false;
+                    }
+                    socket.broadcast.emit('actorDestroy', actor);
                 }
             });
             socket.on('newActor', (data) => {
@@ -188,9 +199,6 @@ io.on('connection', (socket) => {
             socket.on('leaveWorld', (world) => {
                 socket.broadcast.emit('leaveWorld', { id: socket.id, world });
             });
-            socket.on('enterWorld', world => {
-                socket.broadcast.emit('enterWorld', { player, world });
-            })
         }
         bindGameplay()
 

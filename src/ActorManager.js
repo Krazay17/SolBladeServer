@@ -37,6 +37,22 @@ export default class ActorManager {
             this.io.emit('actorDie', data);
         }
     }
+    respawn(targetActor) {
+        if (targetActor) {
+            const { type, respawn, respawning, maxHealth, active, rndPos } = targetActor;
+            if (respawn && !respawning) {
+                targetActor.respawning = true;
+                targetActor.health = maxHealth;
+                setTimeout(() => {
+                    this.createActor(type, {
+                        ...targetActor,
+                        respawning: false,
+                    });
+                }, respawn);
+            }
+        }
+
+    }
     addActor(data) {
         const id = data.netId ? data.netId : randomUUID();
         const actor = {
@@ -47,7 +63,7 @@ export default class ActorManager {
         return actor;
     }
     createActor(type, data) {
-        const existingActor = this._actors.find(a => a.type === type && !a.active);
+        //const existingActor = this._actors.find(a => a.type === type && !a.active);
         const defaults = actorDefaults[type];
         if (defaults) data = { ...defaults, ...data };
         if (data?.rndPos) data.pos = randomPos(data.rndXZ || 5, data.rndY || 5);
@@ -88,12 +104,6 @@ export default class ActorManager {
             const type = i % 2 ? 'health' : 'energy';
             this.createActor('power', { power: type })
         }
-    }
-    getPlayerActorsOfWorld(world) {
-        return this.playerActors.filter(a => a.solWorld === world)
-    }
-    getNonPlayerActorsOfWorld(world) {
-        return this.nonPlayerActors.filter(a => a.solWorld === world)
     }
     getActorsOfWorld(world) {
         return this._actors.filter(a => (a.solWorld === world) && a.active);
