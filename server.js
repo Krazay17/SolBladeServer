@@ -26,9 +26,11 @@ const actorManager = new ActorManager(io);
 const crownQuest = new CrownQuest(io, actorManager);
 const quests = [crownQuest];
 let players = {};
+let playerSockets = {};
 
 io.on('connection', (socket) => {
     if (socket.bound) return;
+    playerSockets[socket.id] = socket;
     socket.bound = true;
     const ip = socket.handshake.address;
     console.log(`New connection from ${ip} with id: ${socket.id}`);
@@ -62,6 +64,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('joinGame', (data) => {
+        if (players[socket.id]) return;
         const player = actorManager.addActor({ ...data, netId: socket.id });
         players[socket.id] = player;
         socket.emit('playersConnected', players);
@@ -114,6 +117,7 @@ io.on('connection', (socket) => {
                 }
             });
             socket.on('playerHealthChangeLocal', ({ id, health }) => {
+                players[id].health = health;
                 socket.broadcast.emit('playerHealthChange', { id, health });
             });
             socket.on('playerRespawn', () => {
@@ -136,7 +140,6 @@ io.on('connection', (socket) => {
                     actor.health = Math.max(0, Math.min(actor.maxHealth, actor.health + data.amount));
                     actor.lastHit = data;
                     io.emit('actorHit', { data, health: actor.health });
-                    //if (actor.type === 'player') io.emit('playerHealthChange', { id: actor.netId, health: actor.health });
                     if (actor.health <= 0) {
                         actorManager.actorDie(actor.lastHit);
                     }
@@ -183,6 +186,9 @@ io.on('connection', (socket) => {
             socket.on('leaveWorld', (world) => {
                 socket.broadcast.emit('leaveWorld', { id: socket.id, world });
             });
+            socket.on('bootPlayer', id=>{
+                playerSockets[id].disconnect();
+            })
         }
         bindGameplay()
 
