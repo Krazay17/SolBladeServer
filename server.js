@@ -57,24 +57,20 @@ io.on('connection', (socket) => {
         if (!isLocal && players[socket.id]) sendDiscordMessage(`Player Disconnected: ${players[socket.id].name}!`);
         console.log('user disconnected: ' + socket.id);
 
-        actorManager.destroyActor(socket.id);
+        actorManager.removeActor(socket.id);
         delete players[socket.id];
     });
 
     socket.on('joinGame', (data) => {
         const player = actorManager.addActor({ ...data, netId: socket.id });
         players[socket.id] = player;
-        socket.emit('joinAck', player);
+        socket.emit('playersConnected', players);
+        socket.broadcast.emit('playerConnected', player)
 
         const bindGameplay = () => {
-            //socket.broadcast.emit('newPlayer', player);
-            //socket.broadcast.emit('newActor', player);
-            // socket.emit('currentPlayers', actorManager.playerActors);
-            // socket.emit('currentActors', actorManager.nonPlayerActors);
             socket.on('newWorld', (solWorld) => {
                 player.solWorld = solWorld;
                 socket.broadcast.emit('newWorld', player);
-                const currentActors = actorManager.getActorsOfWorld(solWorld)
                 socket.emit('currentActors', actorManager.getActorsOfWorld(solWorld));
             })
 
@@ -117,6 +113,9 @@ io.on('connection', (socket) => {
                     socket.broadcast.emit('parryUpdate', doesParry);
                 }
             });
+            socket.on('playerHealthChangeLocal', ({ id, health }) => {
+                socket.broadcast.emit('playerHealthChange', { id, health });
+            });
             socket.on('playerRespawn', () => {
                 const player = players[socket.id];
                 if (player) {
@@ -125,6 +124,7 @@ io.on('connection', (socket) => {
                     player.lastHit = null;
                 }
                 socket.broadcast.emit('playerRespawn', { id: socket.id, health: player.health });
+                socket.broadcast.emit('playerHealthChange', { id: socket.id, health: player.health });
             });
             socket.on('fx', (data) => {
                 socket.broadcast.emit('fx', data);
@@ -136,6 +136,7 @@ io.on('connection', (socket) => {
                     actor.health = Math.max(0, Math.min(actor.maxHealth, actor.health + data.amount));
                     actor.lastHit = data;
                     io.emit('actorHit', { data, health: actor.health });
+                    //if (actor.type === 'player') io.emit('playerHealthChange', { id: actor.netId, health: actor.health });
                     if (actor.health <= 0) {
                         actorManager.actorDie(actor.lastHit);
                     }
@@ -144,29 +145,12 @@ io.on('connection', (socket) => {
             socket.on('actorTouch', (data) => {
                 const actor = actorManager.getActorById(data.target);
                 if (actor && actor.active) {
-                    actor.active = false;
                     io.emit('actorTouch', data);
-                    if (actor.respawn) actorManager.respawn(actor);
+                    if (data.die) actorManager.actorDie(data);
                 }
             });
             socket.on('actorDie', (data) => {
-                const actor = actorManager.getActorById(data.target);
-                if (actor && actor.active) {
-                    if (actor.type !== 'player') {
-                        actor.active = false;
-                    }
-                    io.emit('actorDie', data);
-                    if (actor.respawn) actorManager.respawn(actor);
-                }
-            });
-            socket.on('actorDestroy', (data) => {
-                const actor = actorManager.getActorById(data.netId);
-                if (actor) {
-                    if (actor.type !== 'player') {
-                        actor.active = false;
-                    }
-                    socket.broadcast.emit('actorDestroy', actor);
-                }
+                actorManager.actorDie(data);
             });
             socket.on('newActor', (data) => {
                 const actor = actorManager.addActor(data);

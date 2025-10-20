@@ -23,16 +23,20 @@ export default class ActorManager {
             if (!active) return;
             if (type !== 'player') {
                 targetActor.active = false;
-            }
-            if (respawn && !respawning) {
-                targetActor.respawning = true;
-                targetActor.health = maxHealth;
-                setTimeout(() => {
-                    this.createActor(type, {
-                        ...targetActor,
-                        respawning: false,
-                    });
-                }, respawn);
+                if (respawn) {
+                    if (!respawning) {
+                        targetActor.respawning = true;
+                        targetActor.health = maxHealth;
+                        setTimeout(() => {
+                            this.createActor(type, {
+                                ...targetActor,
+                                respawning: false,
+                            });
+                        }, respawn);
+                    }
+                } else {
+                    this.removeActor(targetActor);
+                }
             }
             this.io.emit('actorDie', data);
         }
@@ -63,6 +67,12 @@ export default class ActorManager {
         this._actors.push(actor);
         return actor;
     }
+    removeActor(actor) {
+        actor = typeof actor === 'string' ? this.getActorById(actor) : actor;
+        if (!actor) return;
+        const index = this._actors.indexOf(actor)
+        this._actors.splice(index, 1);
+    }
     createActor(type, data) {
         //const existingActor = this._actors.find(a => a.type === type && !a.active);
         const defaults = actorDefaults[type];
@@ -80,18 +90,9 @@ export default class ActorManager {
             netId: id,
             active: true,
         }
-        console.log(actor);
         this._actors.push(actor);
         this.io.emit('newActor', actor);
         return actor;
-    }
-    destroyActor(actor) {
-        actor = typeof actor === 'string' ? this.getActorById(actor) : actor;
-        if (!actor) return;
-        actor.active = false;
-        this.io.emit('actorDestroy', actor);
-        const index = this._actors.indexOf(actor)
-        this._actors.splice(index, 1);
     }
     getActorById(id) {
         return this._actors.find(a => a.netId === id);
@@ -117,7 +118,7 @@ export default class ActorManager {
         if (active) {
             return true;
         } else {
-            this.destroyActor(actor)
+            this.removeActor(actor);
         }
         return active;
     }
