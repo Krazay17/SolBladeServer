@@ -92,6 +92,11 @@ io.on('connection', (socket) => {
             socket.on('playerNameChange', name => {
                 players[socket.id].name = name;
                 io.emit('playerNameChange', { id: socket.id, name });
+            });
+            socket.on('playerStateUpdate', data => {
+                const { netId, solWorld } = data;
+                const actor = actorManager.getActorById(netId);
+                actor.solWorld = solWorld
             })
             socket.on('playerPositionSend', (data) => {
                 if (players[socket.id]) players[socket.id].pos = data.pos;
@@ -186,7 +191,7 @@ io.on('connection', (socket) => {
             socket.on('leaveWorld', (world) => {
                 socket.broadcast.emit('leaveWorld', { id: socket.id, world });
             });
-            socket.on('bootPlayer', id=>{
+            socket.on('bootPlayer', id => {
                 playerSockets[id].disconnect();
             })
         }
