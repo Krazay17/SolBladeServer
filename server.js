@@ -94,9 +94,16 @@ io.on('connection', (socket) => {
                 io.emit('playerNameChange', { id: socket.id, name });
             });
             socket.on('playerStateUpdate', data => {
-                const { netId, solWorld } = data;
-                const actor = actorManager.getActorById(netId);
-                actor.solWorld = solWorld
+                const { solWorld, skin } = data;
+                const actor = actorManager.getActorById(socket.id);
+                if (solWorld) {
+                    actor.solWorld = solWorld;
+                }
+                if (skin) {
+                    actor.skin = skin
+                }
+
+                socket.broadcast.emit('playerStateUpdate', data);
             })
             socket.on('playerPositionSend', (data) => {
                 if (players[socket.id]) players[socket.id].pos = data.pos;
